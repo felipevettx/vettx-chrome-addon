@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import "./App.css";
 import { ActionMessage } from "./components/actionMessage/ActionMessage";
 import { Button } from "./components/button/Button";
@@ -5,21 +6,59 @@ import { Message } from "./components/message/Message";
 import { StartButton } from "./components/startButton/StartButton";
 import { StopPulls } from "./components/stopPull/StopPulls";
 import { Toggle } from "./components/toggle/Toggle";
-import { useState } from "react";
 function App() {
   const [processState, setProcessState] = useState("start");
   const [showStopButton, setShowStopButton] = useState(false);
   const [message, setMessage] = useState("noExecution");
+
+  useEffect(() => {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      console.log("Message received in App:", request);
+      if (request.action === "updateStatus") {
+        setProcessState(request.status);
+        setMessage(request.message);
+        setShowStopButton(request.status === "inProcess");
+      }
+    });
+  }, []);
+
   const handleStart = () => {
-    setProcessState("inProcess");
-    setMessage("processInProgress");
-    setShowStopButton(true);
+    console.log("Start button clicked");
+    chrome.runtime.sendMessage({ action: "checkLogin" }, (response) => {
+      console.log("Login check response:", response);
+      if (response && response.loggedIn) {
+        chrome.runtime.sendMessage(
+          { action: "openMultipleTabs", urls: ["facebook", "vettx"] },
+          () => {
+            console.log("Tabs opened, starting scraping");
+            chrome.runtime.sendMessage(
+              { action: "startScraping" },
+              (response) => {
+                console.log("Scraping start response:", response);
+                if (response && response.status === "Scraping started") {
+                  setProcessState("inProcess");
+                  setMessage("processInProgress");
+                  setShowStopButton(true);
+                }
+              }
+            );
+          }
+        );
+      } else {
+        setMessage("Please log in to Facebook and Vettx");
+      }
+    });
   };
 
   const handleStop = () => {
-    setProcessState("start");
-    setMessage("noExecution");
-    setShowStopButton(false);
+    chrome.runtime.sendMessage({ action: "stopScraping" }, (response) => {
+      console.log("Scraping stop response:", response);
+      if (response.status === "Scraping stopped") {
+        setProcessState("start");
+        setMessage("noExecution");
+        setShowStopButton(false);
+      }
+    });
   };
   return (
     <div className="w-[420px] h-[653px] flex flex-col items-center bg-[#F5F8FA]">
@@ -34,7 +73,7 @@ function App() {
           </div>
         </div>
         <div className="flex justify-start">
-          <Button text={"Linstings"} />
+          <Button text={"Listings"} />
           <Button text={"Message syncing"} />
         </div>
         <Toggle />
