@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export function StartButton({ onStart }) {
+export function StartButton({ processState, onStart }) {
   const [remaining, setRemaining] = useState(480);
   const [activeTimer, setActiveTimer] = useState(false);
 
@@ -21,6 +21,13 @@ export function StartButton({ onStart }) {
     }
     return () => clearInterval(interval);
   }, [activeTimer]);
+
+  useEffect(() => {
+    if (processState === "start") {
+      setActiveTimer(false);
+      setRemaining(480);
+    }
+  }, [processState]);
 
   const handleClick = () => {
     setActiveTimer(true);

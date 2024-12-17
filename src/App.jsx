@@ -8,16 +8,21 @@ import { Toggle } from "./components/toggle/Toggle";
 import { useState } from "react";
 function App() {
   const [processState, setProcessState] = useState("start");
-
+  const [showStopButton, setShowStopButton] = useState(false);
+  const [message, setMessage] = useState("noExecution");
   const handleStart = () => {
     setProcessState("inProcess");
+    setMessage("processInProgress");
+    setShowStopButton(true);
   };
 
   const handleStop = () => {
     setProcessState("start");
+    setMessage("noExecution");
+    setShowStopButton(false);
   };
   return (
-    <div className="w-[420px] h-[653px] flex flex-col items-center border border-gray-200 bg-[#F5F8FA]">
+    <div className="w-[420px] h-[653px] flex flex-col items-center bg-[#F5F8FA]">
       <div className="flex flex-col items-center bg-white rounded-b-[12px] w-[420px] h-[539px] border border-[#E3E3E3] p-2 ">
         <div className="flex flex-row justify-between items-center w-full px-4">
           <img src="icons/vettxLogo.svg" alt="VETTX Logo w-[132px] h-[32px]" />
@@ -34,9 +39,9 @@ function App() {
         </div>
         <Toggle />
         <ActionMessage showMessage={processState} />
-        <StartButton onStart={handleStart} />
-        <Message />
-        <StopPulls onClick={handleStop} />
+        <StartButton onStart={handleStart} processState={processState} />
+        <Message processState={message} />
+        {showStopButton && <StopPulls onClick={handleStop} />}
       </div>
       <p className="text-[10px] text-[#BABABA] text-center font-dmSans">
         To seamlessly track and follow up on messages using the VETTX
