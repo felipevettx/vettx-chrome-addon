@@ -45,7 +45,7 @@ export function Message({ processState }) {
   }
 
   return (
-    <div className={`flex flex-row items-center w-full ${containerStyle}`}>
+    <div className={`flex flex-row items-center ${containerStyle}`}>
       <img src={iconSrc} alt="Info Icon" className="mb-2 mr-2" />
       {message}
     </div>

@@ -113,8 +113,8 @@ function App() {
   }, [processState, handleStop]);
 
   return (
-    <div className="w-[420px] h-[653px] flex flex-col items-center bg-[#F5F8FA]">
-      <div className="flex flex-col items-center justify-around bg-white rounded-b-[12px] w-[420px] h-[539px] border border-[#E3E3E3] p-2  ">
+    <div className="w-[420px] h-[653px] flex flex-col items-center justify-around bg-[#F5F8FA] overflow-hidden">
+      <div className="flex flex-col items-center justify-around bg-white rounded-b-[12px] w-[420px] h-[539px] border border-[#E3E3E3] p-2 ">
         <div className="flex flex-row justify-between items-center w-full px-4">
           <img
             src="icons/vettxLogo.svg"
@@ -133,7 +133,12 @@ function App() {
           <Button text={"Message syncing"} />
         </div>
         <Toggle />
-        <ActionMessage showMessage={processState} />
+        <div className="flex flex-col items-center">
+          <ActionMessage showMessage={processState} />
+          <h1 className="text-[#919191] text-base ">
+            Your latest pull added 322 listings
+          </h1>
+        </div>
         <StartButton onStart={handleStart} processState={processState} />
         <Message processState={messageState} />
         {showStopButton && <StopPulls onClick={handleStop} />}
@@ -145,7 +150,7 @@ function App() {
         management. By using this tool, you grant VETTX access to your Facebook
         inbox messages for syncing with the platform.
       </p>
-      <p className="text-[10px] text-[#BABABA] text-center font-dmSans">
+      <p className="text-[10px] text-[#919191] text-center font-dmSans">
         Copyright © 2024 VETTX. All rights reserved.
       </p>
     </div>
