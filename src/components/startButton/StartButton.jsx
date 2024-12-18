@@ -1,44 +1,73 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 export function StartButton({ processState, onStart }) {
-  const [remaining, setRemaining] = useState(480);
+  const [remaining, setRemaining] = useState(0);
   const [activeTimer, setActiveTimer] = useState(false);
+  const [maxTime, setMaxTime] = useState(280000);
+
+  const resetButton = useCallback(() => {
+    setActiveTimer(false);
+    setRemaining(0);
+  }, []);
 
   useEffect(() => {
-    let interval;
-    if (activeTimer) {
-      interval = setInterval(() => {
-        setRemaining((prevTime) => {
-          if (prevTime <= 0) {
-            clearInterval(interval);
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
-    } else {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [activeTimer]);
+    const loadInitialState = async () => {
+      const result = await chrome.storage.local.get([
+        "MAX_TIME",
+        "activeTimer",
+        "remaining",
+        "processState",
+      ]);
+      setMaxTime(result.MAX_TIME || 280000);
+      setActiveTimer(result.activeTimer || false);
+      setRemaining(result.remaining || 0);
+
+      if (result.processState === "start") {
+        resetButton();
+      }
+    };
+
+    loadInitialState();
+
+    const handleStorageChange = (changes) => {
+      if (changes.activeTimer) setActiveTimer(changes.activeTimer.newValue);
+      if (changes.remaining) setRemaining(changes.remaining.newValue);
+      if (changes.processState && changes.processState.newValue === "start") {
+        resetButton();
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+    };
+  }, [resetButton]);
 
   useEffect(() => {
     if (processState === "start") {
-      setActiveTimer(false);
-      setRemaining(480);
+      resetButton();
     }
-  }, [processState]);
+  }, [processState, resetButton]);
 
   const handleClick = () => {
-    setActiveTimer(true);
-    onStart();
+    if (processState === "start" && !activeTimer) {
+      setActiveTimer(true);
+      setRemaining(maxTime / 1000);
+      chrome.storage.local.set({
+        activeTimer: true,
+        remaining: maxTime / 1000,
+        processState: "inProcess",
+      });
+      onStart();
+    }
   };
 
-  const minutes = Math.floor(remaining / 60);
-  const seconds = remaining % 60;
-  const formatTime = `${String(minutes).padStart(2, "0")}:${String(
-    seconds
-  ).padStart(2, "0")}`;
+  const formatTime = `${String(Math.floor(remaining / 60)).padStart(
+    2,
+    "0"
+  )}:${String(remaining % 60).padStart(2, "0")}`;
+
   return (
     <div
       className={`flex items-center justify-center w-[150px] h-[150px] rounded-full 
@@ -49,6 +78,7 @@ export function StartButton({ processState, onStart }) {
         <button
           onClick={handleClick}
           className="flex items-center flex-col justify-center rounded-full w-[138px] h-[138px] border-[5px] border-white text-white font-hkg font-medium leading-none"
+          disabled={activeTimer}
         >
           <span className="font-hkg text-[22px] font-medium ">
             {!activeTimer ? "START!" : formatTime}

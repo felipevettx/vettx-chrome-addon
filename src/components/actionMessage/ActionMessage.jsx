@@ -19,7 +19,7 @@ export function ActionMessage({ showMessage }) {
       case "start":
         return (
           <div className="flex flex-row items-center justify-center">
-            <p className="mr-2 font-bold font-dmSans">
+            <p className="mr-2 font-bold font-dmSans text-2xl">
               Let&apos;s begin the next pull!
             </p>
             <img src="icons/rocket.png" alt="Rocket icon" className="w-6 h-6" />
@@ -28,7 +28,7 @@ export function ActionMessage({ showMessage }) {
       case "inProcess":
         return (
           <div className="flex flex-row items-center justify-center">
-            <p className="mr-2 font-bold font-dmSans">
+            <p className="mr-2 font-bold font-dmSans text-2xl">
               New listings are on the way!
             </p>
             <img src="icons/car.png" alt="Car icon" className="w-6 h-6" />

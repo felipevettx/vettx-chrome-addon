@@ -6,115 +6,145 @@ const urlPage = {
   vettx: "https://app.vettx.com/dashboard",
 };
 
-// Open the facebook and vettx tabs
-function openTabs(urls) {
+let scrapedData = [];
+let isScrapingActive = false;
+let interval;
+
+const MAX_TIME = 280000; // 4 minutos y 40 segundos
+chrome.storage.local.set({ MAX_TIME: MAX_TIME });
+
+function startScrapingTimer() {
+  interval = setInterval(() => {
+    chrome.storage.local.get("remaining", (result) => {
+      let remainingTime = result.remaining || 0;
+
+      if (remainingTime > 0) {
+        remainingTime--;
+        chrome.storage.local.set({ remaining: remainingTime });
+      } else {
+        clearInterval(interval);
+        console.log("Timer finished.");
+        stopScraping();
+      }
+    });
+  }, 1000);
+}
+
+function waitForPageToLoad(tabId) {
   return new Promise((resolve) => {
-    const openNextTab = (index) => {
+    chrome.tabs.onUpdated.addListener(function onTabUpdated(
+      updatedTabId,
+      changeInfo
+    ) {
+      if (updatedTabId === tabId && changeInfo.status === "complete") {
+        chrome.tabs.onUpdated.removeListener(onTabUpdated);
+        resolve();
+      }
+    });
+  });
+}
+
+function openTabsInOrder(urls) {
+  return new Promise((resolve) => {
+    let index = 0;
+    let loadCount = 0;
+
+    function openNextTab() {
       if (index >= urls.length) {
         resolve();
         return;
       }
+
       const url = urls[index];
       chrome.tabs.query({}, (tabs) => {
-        const targetTab = tabs.find((tab) => tab.url && tab.url.includes(url));
-        if (targetTab) {
-          chrome.tabs.update(targetTab.id, { active: true }, () =>
-            openNextTab(index + 1)
-          );
+        const existingTab = tabs.find(
+          (tab) => tab.url && tab.url.startsWith(url)
+        );
+        if (existingTab) {
+          chrome.tabs.update(existingTab.id, { active: true }, async () => {
+            await waitForPageToLoad(existingTab.id);
+            loadCount++;
+            if (loadCount === 2) {
+              resolve();
+            }
+            index++;
+            openNextTab();
+          });
         } else {
-          chrome.tabs.create({ url }, () => openNextTab(index + 1));
+          chrome.tabs.create({ url }, async (newTab) => {
+            await waitForPageToLoad(newTab.id);
+            loadCount++;
+            if (loadCount === 2) {
+              resolve();
+            }
+            index++;
+            openNextTab();
+          });
         }
       });
-    };
-    openNextTab(0);
-  });
-}
-
-// handle message from popup
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log("Message received in background:", message);
-  if (message.action === "openMultipleTabs") {
-    Promise.all(urls.map((url) => openTabs(url))).then(() => {
-      console.log("All tabs opened");
-      sendResponse({ message: "Tabs opened." });
-    });
-    return true;
-  }
-
-  if (message.action === "checkLogin") {
-    checkIfLoggedIn(sendResponse);
-    return true;
-  }
-
-  if (message.action === "startScraping") {
-    startScraping();
-    sendResponse({ status: "Scraping started" });
-  } else if (message.action === "stopScraping") {
-    stopScraping();
-    sendResponse({ status: "Scraping stopped" });
-  }
-});
-
-// Check if the user is logged in vettx
-function checkIfLoggedIn(callback) {
-  chrome.tabs.query({}, (tabs) => {
-    const vettxTab = tabs.find(
-      (tab) => tab.url && tab.url.includes("vettx.com")
-    );
-    const facebookTab = tabs.find(
-      (tab) => tab.url && tab.url.includes("facebook.com")
-    );
-
-    if (vettxTab && facebookTab) {
-      chrome.scripting.executeScript(
-        {
-          target: { tabId: vettxTab.id },
-          func: () => localStorage.getItem("ba") !== null,
-        },
-        (vettxResults) => {
-          chrome.scripting.executeScript(
-            {
-              target: { tabId: facebookTab.id },
-              func: () => document.cookie.includes("c_user"),
-            },
-            (fbResults) => {
-              if (vettxResults[0]?.result && fbResults[0]?.result) {
-                callback({ loggedIn: true });
-              } else {
-                callback({ loggedIn: false });
-              }
-            }
-          );
-        }
-      );
-    } else {
-      console.log("Vettx or Facebook tab not found");
-      callback({ loggedIn: false });
     }
+
+    openNextTab();
   });
 }
 
-let scrapedData = [];
-let isScrapingActive = false;
+function checkIfLoggedIn() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({}, (tabs) => {
+      const vettxTab = tabs.find(
+        (tab) => tab.url && tab.url.includes("vettx.com")
+      );
+      const facebookTab = tabs.find(
+        (tab) => tab.url && tab.url.includes("facebook.com")
+      );
+
+      if (vettxTab && facebookTab) {
+        chrome.scripting.executeScript(
+          {
+            target: { tabId: vettxTab.id },
+            func: () => localStorage.getItem("ba") !== null,
+          },
+          (vettxResults) => {
+            chrome.scripting.executeScript(
+              {
+                target: { tabId: facebookTab.id },
+                func: () => document.cookie.includes("c_user"),
+              },
+              (fbResults) => {
+                const isLoggedIn =
+                  vettxResults[0]?.result && fbResults[0]?.result;
+                resolve(isLoggedIn);
+              }
+            );
+          }
+        );
+      } else {
+        console.log("VETTX or Facebook tab not found.");
+        resolve(false);
+      }
+    });
+  });
+}
 
 function startScraping() {
-  isScrapingActive = true;
-  scrapedData = [];
-  chrome.tabs.query({}, (tabs) => {
-    const facebookTab = tabs.find(
-      (tab) => tab.url && tab.url.includes("facebook.com/marketplace")
-    );
-    if (facebookTab) {
-      console.log("Sending scrape message to Facebook tab");
-      chrome.tabs.sendMessage(facebookTab.id, { action: "scrape" });
-    } else {
-      console.error("Facebook Marketplace tab not found");
+  chrome.storage.local.set({
+    activeTimer: true,
+    remaining: MAX_TIME / 1000,
+    isScrapingActive: true,
+  });
+  startScrapingTimer();
+  console.log("Scraping started");
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) {
+      chrome.tabs.sendMessage(tabs[0].id, { action: "scrape" });
     }
   });
 }
 
 function stopScraping() {
-  isScrapingActive = false;
+  clearInterval(interval);
+  chrome.storage.local.set({ activeTimer: false, isScrapingActive: false });
+  console.log("Scraping stopped");
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) {
       chrome.tabs.sendMessage(tabs[0].id, { action: "stopScrape" });
@@ -123,9 +153,54 @@ function stopScraping() {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "scrapeComplete") {
-    scrapedData = message.payload;
-    console.log("Scraping completed. Total products:", scrapedData.length);
-    // implementar la lógica para guardar o procesar los datos scrapeados
+  switch (message.action) {
+    case "startScraping":
+      startScraping();
+      sendResponse({ status: "Scraping started." });
+      break;
+
+    case "stopScraping":
+      stopScraping();
+      sendResponse({ status: "Scraping stopped." });
+      break;
+
+    case "openMultipleTabs":
+      openTabsInOrder([urlPage.vettx, urlPage.facebook]).then(async () => {
+        console.log("Tabs opened. Checking login status...");
+        const loggedIn = await checkIfLoggedIn();
+        if (loggedIn) {
+          console.log("User is logged in. Starting scraping process...");
+          startScraping();
+          sendResponse({ loggedIn: true });
+        } else {
+          console.log("User is not logged in.");
+          sendResponse({ loggedIn: false });
+        }
+      });
+      return true; // Indica que la respuesta será asíncrona
+
+    case "scrapeComplete":
+      scrapedData = message.payload;
+      console.log("Scraping completed. Total products:", scrapedData.length);
+      stopScraping();
+      break;
+
+    case "updateStatus":
+      chrome.storage.local.set({
+        processState: message.status,
+        message: message.message,
+      });
+      break;
+
+    default:
+      console.log("Unknown action", message.action);
   }
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({
+    processState: "start",
+    message: "noExecution",
+    isScrapingActive: false,
+  });
 });
