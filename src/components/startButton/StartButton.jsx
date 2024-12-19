@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { RingTimer } from "../ringLoader/RingTimer";
+
+const formatTime = (seconds) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(
+    remainingSeconds
+  ).padStart(2, "0")}`;
+};
 
 export function StartButton({ onStart, processState, maxTime }) {
-  const [remaining, setRemaining] = useState(0);
   const [activeTimer, setActiveTimer] = useState(false);
-
-  const resetButton = useCallback(() => {
-    setActiveTimer(false);
-    setRemaining(0);
-  }, []);
+  const [remaining, setRemaining] = useState(maxTime / 1000);
 
   useEffect(() => {
     const loadInitialState = async () => {
@@ -17,10 +21,11 @@ export function StartButton({ onStart, processState, maxTime }) {
         "processState",
       ]);
       setActiveTimer(result.activeTimer || false);
-      setRemaining(result.remaining || 0);
+      setRemaining(result.remaining || maxTime / 1000);
 
       if (result.processState === "start") {
-        resetButton();
+        setActiveTimer(false);
+        setRemaining(maxTime / 1000);
       }
     };
 
@@ -30,7 +35,8 @@ export function StartButton({ onStart, processState, maxTime }) {
       if (changes.activeTimer) setActiveTimer(changes.activeTimer.newValue);
       if (changes.remaining) setRemaining(changes.remaining.newValue);
       if (changes.processState && changes.processState.newValue === "start") {
-        resetButton();
+        setActiveTimer(false);
+        setRemaining(maxTime / 1000);
       }
     };
 
@@ -39,13 +45,7 @@ export function StartButton({ onStart, processState, maxTime }) {
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
     };
-  }, [resetButton]);
-
-  useEffect(() => {
-    if (processState === "start") {
-      resetButton();
-    }
-  }, [processState, resetButton]);
+  }, [maxTime]);
 
   const handleClick = () => {
     if (processState === "start" && !activeTimer) {
@@ -60,32 +60,25 @@ export function StartButton({ onStart, processState, maxTime }) {
     }
   };
 
-  const formatTime = `${String(Math.floor(remaining / 60)).padStart(
-    2,
-    "0"
-  )}:${String(remaining % 60).padStart(2, "0")}`;
-
   return (
     <div
-      className={`flex items-center justify-center w-[150px] h-[150px] rounded-full 
-      ${activeTimer ? "bg-[#009BF5]" : "bg-[#2BB1FF]"} 
-      hover:bg-[#009BF5] transform-color ease-in-out duration-300 cursor-pointer`}
+      className={`relative flex items-center justify-center w-[150px] h-[150px] rounded-full 
+    ${activeTimer ? "bg-[#009BF5]" : "bg-[#2BB1FF]"} 
+    hover:bg-[#009BF5] transform-color ease-in-out duration-300 cursor-pointer`}
+      onClick={handleClick}
     >
-      <div className="bg-none">
-        <button
-          onClick={handleClick}
-          className="flex items-center flex-col justify-center rounded-full w-[138px] h-[138px] border-[5px] border-white text-white font-hkg font-medium leading-none"
-          disabled={activeTimer}
-        >
-          <span className="font-hkg text-[22px] font-medium ">
-            {!activeTimer ? "START!" : formatTime}
+      <RingTimer maxTime={maxTime} />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center text-white">
+          <span className="font-hkg text-[22px] font-medium">
+            {!activeTimer ? "START!" : formatTime(remaining)}
           </span>
           {activeTimer && (
-            <div className="font-hkg text-[11px] tracking-wide text-white ">
+            <div className="font-hkg text-[11px] tracking-wide text-white">
               REMAINING
             </div>
           )}
-        </button>
+        </div>
       </div>
     </div>
   );

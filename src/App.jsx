@@ -193,7 +193,7 @@ function App() {
 
         {selectedTab === "Listings" ? (
           <div className="flex flex-col items-center">
-            <RingTimer maxTime={MAX_TIME} />
+            {/* <RingTimer maxTime={MAX_TIME} /> */}
             <Toggle />
             <div className="flex flex-col items-center">
               <ActionMessage showMessage={processState} />

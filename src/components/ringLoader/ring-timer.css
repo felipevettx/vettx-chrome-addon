@@ -1,11 +1,11 @@
 .ring-loader-bg {
-  stroke: #e3e3e3;
+  stroke: transparent;
   stroke-width: 6;
   fill: none;
 }
 
 .ring-loader-progress {
-  stroke: #2bb1ff;
+  stroke: white;
   stroke-width: 6;
   stroke-linecap: round;
   fill: none;
