@@ -32,6 +32,12 @@ function updateIcon(status) {
   }
 }
 
+function resetIconToDefault() {
+  setTimeout(() => {
+    updateIcon("default");
+  }, 10000);
+}
+
 function startScrapingTimer() {
   interval = setInterval(() => {
     chrome.storage.local.get("remaining", (result) => {
@@ -80,15 +86,20 @@ function openTabsInOrder(urls) {
           (tab) => tab.url && tab.url.startsWith(url)
         );
         if (existingTab) {
-          chrome.tabs.update(existingTab.id, { active: true }, async () => {
-            await waitForPageToLoad(existingTab.id);
+          if (url.includes("facebook.com")) {
+            chrome.tabs.update(existingTab.id, { active: true }, async () => {
+              loadCount++;
+              if (loadCount === 2) {
+                resolve();
+              }
+              index++;
+              openNextTab();
+            });
+          } else {
             loadCount++;
-            if (loadCount === 2) {
-              resolve();
-            }
             index++;
             openNextTab();
-          });
+          }
         } else {
           chrome.tabs.create({ url }, async (newTab) => {
             await waitForPageToLoad(newTab.id);
@@ -171,6 +182,7 @@ function stopScraping() {
       chrome.tabs.sendMessage(tabs[0].id, { action: "stopScrape" });
     }
   });
+  resetIconToDefault();
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -204,6 +216,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       scrapedData = message.payload;
       chrome.storage.local.set({ scrapedCount: scrapedData.length });
       console.log("Scraping completed. Total products:", scrapedData.length);
+      console.log("Scraped Data:", JSON.stringify(scrapedData, null, 2));
       stopScraping();
       break;
 

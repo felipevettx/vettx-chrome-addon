@@ -42,7 +42,7 @@ export function ActionMessage({ showMessage }) {
   return (
     <div
       className={`
-        text-center my-4 transition-opacity duration-300 ease-in-out
+        text-center  transition-opacity duration-300 ease-in-out
         ${isVisible ? "opacity-100" : "opacity-0"}
       `}
     >

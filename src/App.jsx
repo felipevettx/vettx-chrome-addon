@@ -159,8 +159,8 @@ function App() {
 
   return (
     <div
-      className="w-[420px] h-[600px] flex flex-col items-center justify-around bg-[#F5F8FA] px-2"
-      style={{ width: "420px", height: "635px" }}
+      className="w-[420px] h-[600px] flex flex-col items-center bg-[#F5F8FA] px-2"
+      style={{ width: "420px", height: "600px" }}
     >
       <div className="flex flex-col items-center justify-around bg-white rounded-b-[12px] w-[420px] h-[539px] border border-[#E3E3E3] p-4">
         <div className="flex flex-row justify-between items-center w-full px-4">
@@ -191,12 +191,15 @@ function App() {
         </div>
 
         {selectedTab === "Listings" ? (
-          <div className="flex flex-col items-center">
-            <Toggle />
-            <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center mb-4">
+            <div className="mb-4">
+              <Toggle />
+            </div>
+            <div className="flex flex-col items-center mb-4 space-y-1">
               <ActionMessage showMessage={processState} />
               <PullStatusMessage processState={processState} />
             </div>
+
             <StartButton
               onStart={handleStart}
               processState={processState}
@@ -220,14 +223,14 @@ function App() {
         )}
       </div>
 
-      <p className="text-[10px] text-[#BABABA] text-center font-dmSans">
+      <p className="text-[10px] text-[#BABABA] text-center font-dmSans mb-2">
         To seamlessly track and follow up on messages using the VETTX
         Marketplace app, please keep both Facebook Marketplace and VETTX open
         and logged in. This ensures real-time updates and efficient conversation
         management. By using this tool, you grant VETTX access to your Facebook
         inbox messages for syncing with the platform.
       </p>
-      <p className="text-[10px] text-[#919191] text-center font-dmSans">
+      <p className="text-[10px] text-[#919191] text-center font-dmSans mb-2">
         Copyright © 2024 VETTX. All rights reserved.
       </p>
     </div>
