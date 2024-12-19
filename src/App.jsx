@@ -7,6 +7,7 @@ import { StartButton } from "./components/startButton/StartButton";
 import { StopPulls } from "./components/stopPull/StopPulls";
 import { Toggle } from "./components/toggle/Toggle";
 import { PullStatusMessage } from "./components/pullStatus/PullStatusMessage";
+import { RingTimer } from "./components/ringLoader/RingTimer";
 
 function App() {
   const [selectedTab, setSelectedTab] = useState("Listings");
@@ -119,7 +120,10 @@ function App() {
   }, [processState, handleStop]);
 
   return (
-    <div className="w-[420px] h-[600px] flex flex-col items-center justify-around bg-[#F5F8FA] overflow-hidden px-2">
+    <div
+      className="w-[420px] h-[600px] flex flex-col items-center justify-around bg-[#F5F8FA] px-2"
+      style={{ width: "420px", height: "635px" }}
+    >
       <div className="flex flex-col items-center justify-around bg-white rounded-b-[12px] w-[420px] h-[539px] border border-[#E3E3E3] p-4">
         <div className="flex flex-row justify-between items-center w-full px-4">
           <img
@@ -150,6 +154,7 @@ function App() {
 
         {selectedTab === "Listings" ? (
           <div className="flex flex-col items-center">
+            <RingTimer />
             <Toggle />
             <div className="flex flex-col items-center">
               <ActionMessage showMessage={processState} />

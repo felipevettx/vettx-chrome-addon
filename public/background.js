@@ -10,8 +10,27 @@ let scrapedData = [];
 let isScrapingActive = false;
 let interval;
 
-const MAX_TIME = 280000; // 4 minutos y 40 segundos
+const MAX_TIME = 280000; // set en 4 minutos y 40 segundos
 chrome.storage.local.set({ MAX_TIME: MAX_TIME });
+
+//logic for the icons state
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.action.setIcon({ path: "icons/notEnable.png" });
+});
+
+function updateIcon(status) {
+  switch (status) {
+    case "running":
+      chrome.action.setIcon({ path: "icons/syncing.png" });
+      break;
+    case "error":
+      chrome.action.setIcon({ path: "icons/error.png" });
+      break;
+    default:
+      chrome.action.setIcon({ path: "icons/notEnable.png" });
+  }
+}
 
 function startScrapingTimer() {
   interval = setInterval(() => {
@@ -127,6 +146,7 @@ function checkIfLoggedIn() {
 }
 
 function startScraping() {
+  updateIcon("running");
   chrome.storage.local.set({
     activeTimer: true,
     remaining: MAX_TIME / 1000,
@@ -142,6 +162,7 @@ function startScraping() {
 }
 
 function stopScraping() {
+  updateIcon("error");
   clearInterval(interval);
   chrome.storage.local.set({ activeTimer: false, isScrapingActive: false });
   console.log("Scraping stopped");
@@ -181,6 +202,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case "scrapeComplete":
       scrapedData = message.payload;
+      chrome.storage.local.set({ scrapedCount: scrapedData.length });
       console.log("Scraping completed. Total products:", scrapedData.length);
       stopScraping();
       break;
