@@ -1,65 +1,92 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./ring-timer.css";
 
-export function RingTimer() {
-  const [percentage, setPercentage] = useState(100); // Inicia lleno al 100%
+export function RingTimer({ maxTime }) {
+  const [percentage, setPercentage] = useState(100);
+  const [isVisible, setIsVisible] = useState(true);
+  const animationFrameRef = useRef();
+  const startTimeRef = useRef(0);
+  const remainingTimeRef = useRef(0);
 
   useEffect(() => {
-    let interval;
+    const animate = (timestamp) => {
+      if (startTimeRef.current === 0) {
+        startTimeRef.current = timestamp;
+      }
+      const elapsed = timestamp - startTimeRef.current;
+      const remaining = Math.max(0, remainingTimeRef.current - elapsed / 1000);
+      const newPercentage = (remaining / (maxTime / 1000)) * 100;
 
-    // Escuchar cambios en chrome.storage.local para reiniciar el temporizador
-    const handleStorageChange = (changes) => {
-      if (changes.remaining || changes.MAX_TIME) {
-        chrome.storage.local.get(["remaining", "MAX_TIME"], (result) => {
-          const remainingTime = result.remaining || 0;
-          const maxTime = result.MAX_TIME || 280000; // Tiempo máximo en ms
+      setPercentage(newPercentage);
 
-          // Si se detecta un reinicio, inicia desde 100%
-          if (remainingTime === maxTime / 1000) {
-            setPercentage(100);
-          }
-        });
+      if (remaining > 0) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        setPercentage(0);
       }
     };
 
-    // Registrar listener para cambios en chrome.storage.local
+    const handleStorageChange = (changes) => {
+      if (
+        changes.remaining ||
+        changes.MAX_TIME ||
+        changes.isScrapingActive !== undefined
+      ) {
+        chrome.storage.local.get(
+          ["remaining", "MAX_TIME", "isScrapingActive"],
+          (result) => {
+            const remainingTime = result.remaining || 0;
+            const isActive = result.isScrapingActive;
+
+            setIsVisible(true);
+
+            if (!isActive) {
+              setPercentage(100);
+              if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+              }
+            } else {
+              remainingTimeRef.current = remainingTime;
+              startTimeRef.current = 0;
+              if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+              }
+              animationFrameRef.current = requestAnimationFrame(animate);
+            }
+          }
+        );
+      }
+    };
+
+    chrome.storage.local.get(
+      ["remaining", "MAX_TIME", "isScrapingActive"],
+      (result) => {
+        const remainingTime = result.remaining || 0;
+        const isActive = result.isScrapingActive;
+
+        if (!isActive) {
+          setPercentage(100);
+        } else {
+          remainingTimeRef.current = remainingTime;
+          startTimeRef.current = 0;
+          animationFrameRef.current = requestAnimationFrame(animate);
+        }
+      }
+    );
+
     chrome.storage.onChanged.addListener(handleStorageChange);
 
-    // Iniciar temporizador
-    const startTimer = () => {
-      interval = setInterval(() => {
-        chrome.storage.local.get(["remaining", "MAX_TIME"], (result) => {
-          const remainingTime = result.remaining || 0;
-          const maxTime = result.MAX_TIME || 280000;
-
-          // Calcular el porcentaje
-          const newPercentage = Math.floor(
-            (remainingTime / (maxTime / 1000)) * 100
-          );
-          setPercentage(newPercentage);
-
-          if (remainingTime <= 0) {
-            clearInterval(interval);
-          }
-        });
-      }, 1000); // Actualiza cada segundo
-    };
-
-    // Reiniciar al iniciar el componente
-    chrome.storage.local.get(["remaining", "MAX_TIME"], (result) => {
-      const maxTime = result.MAX_TIME || 280000;
-      chrome.storage.local.set({ remaining: maxTime / 1000 }); // Reinicia el tiempo
-      setPercentage(100); // Rellena el círculo
-      startTimer(); // Inicia temporizador
-    });
-
     return () => {
-      clearInterval(interval); // Limpia el intervalo
-      chrome.storage.onChanged.removeListener(handleStorageChange); // Elimina listener
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      chrome.storage.onChanged.removeListener(handleStorageChange);
     };
-  }, []);
+  }, [maxTime]);
 
-  const circumference = 2 * Math.PI * 66; // Radio del círculo es 66
+  if (!isVisible) return null;
+
+  const circumference = 2 * Math.PI * 66;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
@@ -70,9 +97,7 @@ export function RingTimer() {
         viewBox="0 0 138 138"
         className="transform -rotate-90"
       >
-        {/* Círculo de fondo */}
         <circle cx="69" cy="69" r="66" className="ring-loader-bg" />
-        {/* Círculo de progreso */}
         <circle
           cx="69"
           cy="69"

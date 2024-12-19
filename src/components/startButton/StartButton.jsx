@@ -1,9 +1,8 @@
-import { useEffect, useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
-export function StartButton({ processState, onStart }) {
+export function StartButton({ onStart, processState, maxTime }) {
   const [remaining, setRemaining] = useState(0);
   const [activeTimer, setActiveTimer] = useState(false);
-  const [maxTime, setMaxTime] = useState(280000);
 
   const resetButton = useCallback(() => {
     setActiveTimer(false);
@@ -13,12 +12,10 @@ export function StartButton({ processState, onStart }) {
   useEffect(() => {
     const loadInitialState = async () => {
       const result = await chrome.storage.local.get([
-        "MAX_TIME",
         "activeTimer",
         "remaining",
         "processState",
       ]);
-      setMaxTime(result.MAX_TIME || 280000);
       setActiveTimer(result.activeTimer || false);
       setRemaining(result.remaining || 0);
 

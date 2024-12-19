@@ -1,3 +1,5 @@
+import React from "react";
+
 export function Message({ processState }) {
   let message;
   let containerStyle = "rounded-[12px] p-4";
@@ -5,7 +7,7 @@ export function Message({ processState }) {
   let iconSrc = "icons/exclamationIcon.svg";
 
   switch (processState) {
-    case "noExecution":
+    case "initial":
       containerStyle += " bg-[#A1DBFF80]";
       message = (
         <p className={`text-xs ${textColor} text-center`}>
@@ -15,6 +17,8 @@ export function Message({ processState }) {
         </p>
       );
       break;
+    case "noExecution":
+    case "start":
     case "processInProgress":
       containerStyle += " bg-[#A1DBFF80]";
       message = (
@@ -25,6 +29,15 @@ export function Message({ processState }) {
       );
       break;
     case "manuallyStopped":
+      containerStyle += " bg-[#FDBCC280]";
+      textColor = "text-[#F82032]";
+      iconSrc = "icons/exclamationAlertIcon.svg";
+      message = (
+        <p className={`text-xs ${textColor} text-center`}>
+          The process was stopped manually. To continue, please start it again.
+        </p>
+      );
+      break;
     case "facebookClosed":
     case "vettxClosed":
       containerStyle += " bg-[#FDBCC280]";
@@ -32,11 +45,26 @@ export function Message({ processState }) {
       iconSrc = "icons/exclamationAlertIcon.svg";
       message = (
         <p className={`text-xs ${textColor} text-center`}>
-          {processState === "manuallyStopped"
-            ? "The process was stopped manually. To continue, please start it again."
-            : processState === "facebookClosed"
+          {processState === "facebookClosed"
             ? "The process stopped because the Facebook tab was closed. Please start the process to proceed."
             : "The process stopped because the VETTX tab was closed. Please start the process to proceed."}
+        </p>
+      );
+      break;
+    case "success":
+      containerStyle += " bg-[#D1FAE5]";
+      message = (
+        <p className={`text-xs ${textColor} text-center font-bold`}>
+          Process completed successfully!
+        </p>
+      );
+      break;
+    case "error":
+      containerStyle += " bg-[#FECACA]";
+      textColor = "text-[#F82032]";
+      message = (
+        <p className={`text-xs ${textColor} text-center font-bold`}>
+          An error occurred. Please try again later.
         </p>
       );
       break;

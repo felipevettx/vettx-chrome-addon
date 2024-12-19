@@ -1,13 +1,17 @@
 .ring-loader-bg {
-  stroke: transparent; /* Color de fondo gris claro */
+  stroke: #e3e3e3;
   stroke-width: 6;
   fill: none;
 }
 
 .ring-loader-progress {
-  stroke: #ff0000; /* Color rojo para probar */
+  stroke: #2bb1ff;
   stroke-width: 6;
-  fill: none;
-  transition: stroke-dashoffset 1s ease-in-out; /* Animación suave */
   stroke-linecap: round;
+  fill: none;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+svg {
+  transition: transform 0.3s ease;
 }

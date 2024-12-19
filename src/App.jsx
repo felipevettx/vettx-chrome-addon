@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import "./App.css";
 import { ActionMessage } from "./components/actionMessage/ActionMessage";
 import { Button } from "./components/button/Button";
@@ -8,6 +8,9 @@ import { StopPulls } from "./components/stopPull/StopPulls";
 import { Toggle } from "./components/toggle/Toggle";
 import { PullStatusMessage } from "./components/pullStatus/PullStatusMessage";
 import { RingTimer } from "./components/ringLoader/RingTimer";
+
+const MAX_TIME = 280000; // 4 minutos y 40 segundos en milisegundos
+const MESSAGE_RESET_DELAY = 10000; // 10segundos
 
 function App() {
   const [selectedTab, setSelectedTab] = useState("Listings");
@@ -24,19 +27,25 @@ function App() {
     setSelectedTab("Listings");
   }, []);
 
-  useEffect(() => {
-    const loadInitialState = async () => {
-      const result = await chrome.storage.local.get([
-        "processState",
-        "isScrapingActive",
-        "messageState",
-      ]);
-      if (result.processState) updateState(result.processState);
-      if (result.isScrapingActive !== undefined)
-        setShowStopButton(result.isScrapingActive);
-      if (result.messageState) setMessageState(result.messageState);
-    };
+  const loadInitialState = async () => {
+    const result = await chrome.storage.local.get([
+      "processState",
+      "isScrapingActive",
+      "messageState",
+      "MAX_TIME",
+    ]);
+    if (result.processState) updateState(result.processState);
+    if (result.isScrapingActive !== undefined)
+      setShowStopButton(result.isScrapingActive);
+    if (result.messageState) {
+      setMessageState(result.messageState);
+    } else {
+      setMessageState("initial");
+    }
+    if (!result.MAX_TIME) chrome.storage.local.set({ MAX_TIME });
+  };
 
+  useEffect(() => {
     loadInitialState();
 
     const handleStorageChange = (changes) => {
@@ -51,13 +60,14 @@ function App() {
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
     };
-  }, [updateState]);
+  }, [updateState, loadInitialState]);
 
   const handleStart = useCallback(() => {
     console.log("Start button clicked");
+    setMessageState("initial");
     chrome.runtime.sendMessage({ action: "openMultipleTabs" }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error(chrome.runtime.lastError);
+        console.log(chrome.runtime.lastError);
         setMessageState("error");
       } else if (response && response.loggedIn) {
         updateState("inProcess");
@@ -67,12 +77,34 @@ function App() {
           isScrapingActive: true,
           activeTimer: true,
           messageState: "processInProgress",
+          remaining: MAX_TIME / 1000,
         });
+        chrome.action.setIcon({ path: "icons/enable.png" });
       } else {
         setMessageState("loginRequired");
       }
     });
   }, [updateState]);
+
+  const checkTabsAndUpdateMessage = useCallback(() => {
+    chrome.tabs.query({}, (tabs) => {
+      const facebookTab = tabs.find(
+        (tab) => tab.url && tab.url.includes("facebook.com")
+      );
+      const vettxTab = tabs.find(
+        (tab) => tab.url && tab.url.includes("vettx.com")
+      );
+
+      if (facebookTab && vettxTab) {
+        setMessageState("tabsOpen");
+      } else {
+        setMessageState("initial");
+      }
+      chrome.storage.local.set({
+        messageState: facebookTab && vettxTab ? "noExecution" : "initial",
+      });
+    });
+  }, []);
 
   const handleStop = useCallback(() => {
     chrome.runtime.sendMessage({ action: "stopScraping" }, (response) => {
@@ -88,6 +120,11 @@ function App() {
           remaining: 0,
           messageState: "manuallyStopped",
         });
+
+        // Reiniciar después de 10 segundos
+        setTimeout(() => {
+          checkTabsAndUpdateMessage();
+        }, MESSAGE_RESET_DELAY);
       }
     });
   }, [updateState]);
@@ -110,6 +147,8 @@ function App() {
             setMessageState("vettxClosed");
             handleStop();
           }
+        } else {
+          checkTabsAndUpdateMessage();
         }
       });
     };
@@ -117,7 +156,7 @@ function App() {
     const intervalId = setInterval(checkTabsStatus, 5000); // Check every 5 seconds
 
     return () => clearInterval(intervalId);
-  }, [processState, handleStop]);
+  }, [processState, handleStop, checkTabsAndUpdateMessage]);
 
   return (
     <div
@@ -154,13 +193,17 @@ function App() {
 
         {selectedTab === "Listings" ? (
           <div className="flex flex-col items-center">
-            <RingTimer />
+            <RingTimer maxTime={MAX_TIME} />
             <Toggle />
             <div className="flex flex-col items-center">
               <ActionMessage showMessage={processState} />
               <PullStatusMessage />
             </div>
-            <StartButton onStart={handleStart} processState={processState} />
+            <StartButton
+              onStart={handleStart}
+              processState={processState}
+              maxTime={MAX_TIME}
+            />
             <div className="mt-4">
               <Message processState={messageState} />
             </div>
