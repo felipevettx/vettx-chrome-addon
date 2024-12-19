@@ -10,7 +10,7 @@ let scrapedData = [];
 let isScrapingActive = false;
 let interval;
 
-const MAX_TIME = 280000; // set en 4 minutos y 40 segundos
+const MAX_TIME = 280000; // set en 4 minutes y 40 seconds
 chrome.storage.local.set({ MAX_TIME: MAX_TIME });
 
 //logic for the icons state
@@ -198,7 +198,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ loggedIn: false });
         }
       });
-      return true; // Indica que la respuesta será asíncrona
+      return true;
 
     case "scrapeComplete":
       scrapedData = message.payload;

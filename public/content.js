@@ -65,33 +65,24 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
 
       function checkElement() {
         if (!isScrapingActive) {
-          reject(new Error("Scraping detenido por el usuario"));
+          reject(new Error("Scraping process stopped by user"));
           return;
         }
 
         for (let selector of selectors) {
           const elements = document.querySelectorAll(selector);
           if (elements.length > 0) {
-            log(
-              `Elementos encontrados: ${selector}, cantidad: ${elements.length}`
-            );
+            log(`Items founded: ${selector}, amount: ${elements.length}`);
             resolve(elements);
             return;
           }
         }
 
         if (Date.now() - startTime > timeout) {
-          log(
-            `Tiempo de espera agotado. Selectores probados: ${selectors.join(
-              ", "
-            )}`,
-            "warn"
-          );
+          log(`Timed out. Selectors tested: ${selectors.join(", ")}`, "warn");
           reject(
             new Error(
-              `Elementos ${selectors.join(
-                ", "
-              )} no encontrados después de ${timeout}ms`
+              `Elements ${selectors.join(", ")} not found after ${timeout}ms`
             )
           );
         } else {
@@ -111,7 +102,7 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
   function extractProductData(productElement) {
     const link = productElement.href;
     const productId =
-      link.split("/item/")[1]?.split("/")[0] || "ID no disponible";
+      link.split("/item/")[1]?.split("/")[0] || "ID not available";
 
     return {
       id: productId,
@@ -129,7 +120,7 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
       const randomScrollInterval = CONFIG.SCROLL_INTERVAL + Math.random() * 500;
       let timer = setInterval(() => {
         if (!isScrapingActive) {
-          log(`Scroll detenido. Elementos actuales: ${totalProductsScraped}`);
+          log(`Scroll stopped. Current items: ${totalProductsScraped}`);
           clearInterval(timer);
           resolve();
           return;
@@ -151,43 +142,40 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
    * Main function to scrape the Facebook Marketplace
    */
   async function scrapeMarketplace() {
-    log("Esperando a que la página se cargue completamente...");
+    log("Waiting for page to fully load...");
     await waitForPageLoad();
-    log("Página cargada. Iniciando extracción de datos del Marketplace...");
+    log("Page loaded. Starting data extraction from Marketplace...");
 
     let allProducts = [];
     try {
       while (isScrapingActive) {
         const elapsedTime = Date.now() - startTime;
         if (elapsedTime >= MAX_TIME) {
-          log("Límite de tiempo alcanzado. Deteniendo el scraping");
+          log("Time limit reached. Stopping scraping");
           break;
         }
 
         await scrollPage();
-        log("Página desplazada, esperando a que se carguen nuevos productos");
+        log("Page scrolled, waiting for new products to load");
 
         if (!isScrapingActive) {
-          throw new Error("Proceso detenido por el usuario");
+          throw new Error("Process stopped by user");
         }
 
         try {
           const productElements = await waitForElement([
             'a[href^="/marketplace/item/"]',
           ]);
-          log(`Encontrados ${productElements.length} elementos de producto`);
+          log(`Found ${productElements.length} product elements`);
 
           if (productElements.length === 0) {
             retryCount++;
             if (retryCount >= CONFIG.MAX_RETRIES) {
-              log(
-                "Máximo de reintentos alcanzado. Deteniendo el proceso.",
-                "warn"
-              );
+              log("Maximum retries reached. Stopping the process.", "warn");
               break;
             }
             log(
-              `No se encontraron productos. Reintento ${retryCount}/${CONFIG.MAX_RETRIES}`,
+              `No products found. Retry ${retryCount}/${CONFIG.MAX_RETRIES}`,
               "warn"
             );
             continue;
@@ -199,19 +187,19 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
             .map(extractProductData)
             .filter((product) => !allProducts.some((p) => p.id === product.id));
 
-          log(`Nuevos productos únicos encontrados: ${newProducts.length}`);
+          log(`New unique products found: ${newProducts.length}`);
 
           if (newProducts.length === 0) {
             noNewProductsCount++;
             if (noNewProductsCount >= CONFIG.MAX_RETRIES) {
               log(
-                "No se encontraron nuevos productos después de varios intentos. Deteniendo el proceso.",
+                "No new products found after several attempts. Stopping the process.",
                 "warn"
               );
               break;
             }
             log(
-              `No se encontraron nuevos productos. Intento ${noNewProductsCount}/${CONFIG.MAX_RETRIES}`,
+              `No new products found. Attempt ${noNewProductsCount}/${CONFIG.MAX_RETRIES}`,
               "warn"
             );
             continue;
@@ -221,7 +209,7 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
           allProducts = [...allProducts, ...newProducts];
           totalProductsScraped = allProducts.length;
 
-          log(`Total de productos encontrados: ${totalProductsScraped}`);
+          log(`Total products found: ${totalProductsScraped}`);
 
           chrome.runtime.sendMessage({
             action: "updateStatus",
@@ -229,30 +217,24 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
             message: `processInProgress - Scraped ${totalProductsScraped} products`,
           });
         } catch (error) {
-          log(
-            `Error durante la extracción de productos: ${error.message}`,
-            "error"
-          );
+          log(`Error while retrieving products: ${error.message}`, "error");
           retryCount++;
           if (retryCount >= CONFIG.MAX_RETRIES) {
-            log(
-              "Máximo de reintentos alcanzado. Deteniendo el scraping.",
-              "warn"
-            );
+            log("Maximum retries reached. Stopping scraping.", "warn");
             break;
           }
           log(
-            `Ocurrió un error. Reintento ${retryCount}/${CONFIG.MAX_RETRIES}`,
+            `An error occurred. Please retry. ${retryCount}/${CONFIG.MAX_RETRIES}`,
             "warn"
           );
         }
       }
 
       log(
-        `Extracción de datos completada. Total de productos encontrados: ${totalProductsScraped}`
+        `Data extraction completed. Total products found: ${totalProductsScraped}`
       );
       if (allProducts.length > 0) {
-        log(`Muestra de datos extraídos: ${JSON.stringify(allProducts[0])}`);
+        log(`Sample of extracted data: ${JSON.stringify(allProducts[0])}`);
       }
 
       chrome.runtime.sendMessage({
@@ -266,7 +248,7 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
         message: `noExecution - Scraping completed. Total products: ${totalProductsScraped}`,
       });
     } catch (error) {
-      log(`Error fatal durante el proceso: ${error.message}`, "error");
+      log(`Fatal error during the process: ${error.message}`, "error");
       chrome.runtime.sendMessage({
         action: "updateStatus",
         status: "start",
@@ -276,17 +258,17 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
       });
     } finally {
       isScrapingActive = false;
-      log("Proceso de scraping finalizado");
+      log("Scraping process finished");
     }
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "scrape") {
-      log("Iniciando proceso de scraping");
+      log("Starting scraping process");
       isScrapingActive = true;
       scrapeMarketplace();
     } else if (message.action === "stopScrape") {
-      log("Deteniendo el proceso de scraping");
+      log("Stopping the scraping process");
       isScrapingActive = false;
     }
   });

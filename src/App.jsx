@@ -7,10 +7,9 @@ import { StartButton } from "./components/startButton/StartButton";
 import { StopPulls } from "./components/stopPull/StopPulls";
 import { Toggle } from "./components/toggle/Toggle";
 import { PullStatusMessage } from "./components/pullStatus/PullStatusMessage";
-import { RingTimer } from "./components/ringLoader/RingTimer";
 
-const MAX_TIME = 280000; // 4 minutos y 40 segundos en milisegundos
-const MESSAGE_RESET_DELAY = 10000; // 10segundos
+const MAX_TIME = 280000; // 4 minutes y 40 seconds en milliseconds
+const MESSAGE_RESET_DELAY = 10000; // 10 seconds
 
 function App() {
   const [selectedTab, setSelectedTab] = useState("Listings");
@@ -121,7 +120,7 @@ function App() {
           messageState: "manuallyStopped",
         });
 
-        // Reiniciar después de 10 segundos
+        // Retry after de 10 seconds
         setTimeout(() => {
           checkTabsAndUpdateMessage();
         }, MESSAGE_RESET_DELAY);
@@ -193,11 +192,10 @@ function App() {
 
         {selectedTab === "Listings" ? (
           <div className="flex flex-col items-center">
-            {/* <RingTimer maxTime={MAX_TIME} /> */}
             <Toggle />
             <div className="flex flex-col items-center">
               <ActionMessage showMessage={processState} />
-              <PullStatusMessage />
+              <PullStatusMessage processState={processState} />
             </div>
             <StartButton
               onStart={handleStart}
@@ -214,7 +212,7 @@ function App() {
             <div className="flex items-center flex-col space-y-3">
               <div className="w-8 h-8 animate-spin border-4 border-[#E3E3E3] border-t-4 border-t-[#4F8DFF] rounded-full"></div>
               <p className="text-[#727272] text-lg font-semibold text-center">
-                This feature is under construction. Please check back later!
+                We're building something awesome, just for you! Check back soon
               </p>
               <p className="text-xl">🚧</p>
             </div>
