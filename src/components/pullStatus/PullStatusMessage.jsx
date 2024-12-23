@@ -74,7 +74,7 @@ export function PullStatusMessage({ processState }) {
   };
 
   return (
-    <div className="flex flex-col items-center mt-4 text-center">
+    <div className="flex flex-col items-center text-center">
       <p
         className={`text-[#919191] text-base transition-opacity duration-500 ${
           isVisible ? "opacity-100" : "opacity-0"

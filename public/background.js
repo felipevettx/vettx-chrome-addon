@@ -13,12 +13,6 @@ let interval;
 const MAX_TIME = 280000; // set en 4 minutes y 40 seconds
 chrome.storage.local.set({ MAX_TIME: MAX_TIME });
 
-//logic for the icons state
-
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.action.setIcon({ path: "icons/notEnable.png" });
-});
-
 function updateIcon(status) {
   switch (status) {
     case "running":
@@ -31,6 +25,19 @@ function updateIcon(status) {
       chrome.action.setIcon({ path: "icons/notEnable.png" });
   }
 }
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.isToggleActive) {
+    const isToggleActive = changes.isToggleActive.newValue;
+    if (isToggleActive) {
+      console.log("Toggle activated. Starting full process...");
+      startFullProcess();
+    } else {
+      console.log("Toggle deactivated. Stopping scraping process...");
+      stopScraping();
+    }
+  }
+});
 
 function resetIconToDefault() {
   setTimeout(() => {
@@ -185,6 +192,23 @@ function stopScraping() {
   resetIconToDefault();
 }
 
+async function startFullProcess() {
+  try {
+    await openTabsInOrder([urlPage.vettx, urlPage.facebook]);
+    console.log("Tabs opened. Checking login status...");
+    const loggedIn = await checkIfLoggedIn();
+    if (loggedIn) {
+      console.log("User is logged in. Starting scraping process...");
+      startScraping();
+    } else {
+      console.log("User is not logged in.");
+      chrome.runtime.sendMessage({ action: "loginRequired" });
+    }
+  } catch (error) {
+    console.error("Error in startFullProcess:", error);
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.action) {
     case "startScraping":
@@ -198,17 +222,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
 
     case "openMultipleTabs":
-      openTabsInOrder([urlPage.vettx, urlPage.facebook]).then(async () => {
-        console.log("Tabs opened. Checking login status...");
-        const loggedIn = await checkIfLoggedIn();
-        if (loggedIn) {
-          console.log("User is logged in. Starting scraping process...");
-          startScraping();
-          sendResponse({ loggedIn: true });
-        } else {
-          console.log("User is not logged in.");
-          sendResponse({ loggedIn: false });
-        }
+      startFullProcess().then(() => {
+        sendResponse({ status: "Process completed" });
       });
       return true;
 
@@ -237,5 +252,6 @@ chrome.runtime.onInstalled.addListener(() => {
     processState: "start",
     message: "noExecution",
     isScrapingActive: false,
+    isToggleActive: false,
   });
 });

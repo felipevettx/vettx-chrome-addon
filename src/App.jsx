@@ -9,14 +9,64 @@ import { Toggle } from "./components/toggle/Toggle";
 import { PullStatusMessage } from "./components/pullStatus/PullStatusMessage";
 
 const MAX_TIME = 280000; // 4 minutes y 40 seconds en milliseconds
-const MESSAGE_RESET_DELAY = 10000; // 10 seconds
+const MESSAGE_RESET_DELAY = 5000; // set time to restart alert message
 
 function App() {
   const [selectedTab, setSelectedTab] = useState("Listings");
   const [processState, setProcessState] = useState("start");
   const [showStopButton, setShowStopButton] = useState(false);
   const [messageState, setMessageState] = useState("noExecution");
+  const [isToggleActive, setIsToggleActive] = useState(false);
 
+  //logic for toggle
+  useEffect(() => {
+    chrome.storage.local.get(
+      ["isToggleActive", "processState", "isScrapingActive"],
+      (result) => {
+        setIsToggleActive(result.isToggleActive || false);
+        setProcessState(result.processState || "start");
+        setShowStopButton(result.isScrapingActive || false);
+      }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (isToggleActive) {
+      startFullProcess();
+    }
+  }, [isToggleActive]);
+
+  const startFullProcess = useCallback(() => {
+    chrome.runtime.sendMessage({ action: "startFullProcess" }, (response) => {
+      if (response.success) {
+        setProcessState("inProcess");
+        setShowStopButton(true);
+        setMessageState("processInProgress");
+      } else {
+        setMessageState(
+          response.error === "loginRequired" ? "loginRequired" : "error"
+        );
+      }
+    });
+  }, []);
+
+  const handleToggleChange = useCallback(
+    (newState) => {
+      setIsToggleActive(newState);
+      chrome.storage.local.set({ isToggleActive: newState });
+      if (newState) {
+        startFullProcess();
+      } else {
+        chrome.runtime.sendMessage({ action: "stopScrape" });
+        setProcessState("start");
+        setShowStopButton(false);
+        setMessageState("manuallyStopped");
+      }
+    },
+    [startFullProcess]
+  );
+
+  //logic for tabs
   const updateState = useCallback((newState) => {
     setProcessState(newState);
     chrome.storage.local.set({ processState: newState });
@@ -157,27 +207,39 @@ function App() {
     return () => clearInterval(intervalId);
   }, [processState, handleStop, checkTabsAndUpdateMessage]);
 
+  useEffect(() => {
+    chrome.storage.local.get("remaining", (result) => {
+      if (result.remaining !== undefined) {
+        setRemainingTime(result.remaining);
+      }
+    });
+  }, []);
+
   return (
     <div
-      className="w-[420px] h-[600px] flex flex-col items-center bg-[#F5F8FA] px-2"
+      className="w-[420px] h-[585px] flex flex-col items-center bg-[#F5F8FA]"
       style={{ width: "420px", height: "600px" }}
     >
-      <div className="flex flex-col items-center justify-around bg-white rounded-b-[12px] w-[420px] h-[539px] border border-[#E3E3E3] p-4">
-        <div className="flex flex-row justify-between items-center w-full px-4">
-          <img
-            src="icons/vettxLogo.svg"
-            alt="VETTX Logo"
-            className="w-[132px] h-[32px]"
-          />
-          <div className="flex flex-col w-[142px] h-[44px]">
-            <h3 className="text-base font-hkg text-right">Chrome</h3>
-            <h3 className="text-[22px] font-bold font-hkg text-right">
-              Add On
-            </h3>
+      <div className="flex flex-col items-center justify-around bg-white w-[420px] h-[539px] border border-[#E3E3E3]">
+        <div className="flex flex-row justify-between items-center w-full px-4 pt-4">
+          <div className="justify-between flex flex-row items-center w-full mb-[10px]">
+            <img
+              src="icons/vettxLogo.svg"
+              alt="VETTX Logo"
+              className="w-[132px] h-[32px]"
+            />
+            <div className="flex flex-col w-[142px] h-[44px] ">
+              <h3 className="text-base font-normal font-hkg text-right text-[#181c30] leading-[22px] ">
+                Chrome
+              </h3>
+              <h3 className="text-[22px] font-bold font-hkg text-right capitalize leading-[22px] text-[#181C30] ">
+                Add On
+              </h3>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-row justify-start w-full mb-4 border-b-[1px] border-[#E3E3E3]">
+        <div className="flex flex-row justify-start w-full border-b-[1px] border-[#E3E3E3]">
           <Button
             text="Listings"
             isSelected={selectedTab === "Listings"}
@@ -191,11 +253,11 @@ function App() {
         </div>
 
         {selectedTab === "Listings" ? (
-          <div className="flex flex-col items-center mb-4">
-            <div className="mb-4">
-              <Toggle />
+          <div className="flex flex-col items-center">
+            <div className="mt-6">
+              <Toggle checked={isToggleActive} onChange={handleToggleChange} />
             </div>
-            <div className="flex flex-col items-center mb-4 space-y-1">
+            <div className="flex flex-col items-center mb-4 space-y-[12px]">
               <ActionMessage showMessage={processState} />
               <PullStatusMessage processState={processState} />
             </div>
@@ -205,10 +267,14 @@ function App() {
               processState={processState}
               maxTime={MAX_TIME}
             />
-            <div className="mt-4">
-              <Message processState={messageState} />
+            <div className="flex flex-col items-center">
+              <div className="mt-4 px-4 w-full">
+                <Message processState={messageState} />
+              </div>
             </div>
-            {showStopButton && <StopPulls onClick={handleStop} />}
+            <div className="mt-[13px] mb-[25px]">
+              {showStopButton && <StopPulls onClick={handleStop} />}
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-center h-full py-4 px-6 bg-[#F1F3F5] border border-[#E3E3E3] rounded-lg shadow-md">
@@ -223,14 +289,7 @@ function App() {
         )}
       </div>
 
-      <p className="text-[10px] text-[#BABABA] text-center font-dmSans mb-2">
-        To seamlessly track and follow up on messages using the VETTX
-        Marketplace app, please keep both Facebook Marketplace and VETTX open
-        and logged in. This ensures real-time updates and efficient conversation
-        management. By using this tool, you grant VETTX access to your Facebook
-        inbox messages for syncing with the platform.
-      </p>
-      <p className="text-[10px] text-[#919191] text-center font-dmSans mb-2">
+      <p className="text-[10px] text-[#919191] text-center font-normal font-dmSans my-auto">
         Copyright © 2024 VETTX. All rights reserved.
       </p>
     </div>
