@@ -13,9 +13,8 @@ export function PullStatusMessage({ processState }) {
         if (result.lastPullTime) {
           const hoursElapsed = calculateHoursElapsed(result.lastPullTime);
           setTimeLastPull(`${hoursElapsed} hours`);
-          setCurrentMessage(`${hoursElapsed} hours from your last pull.`);
         } else {
-          setCurrentMessage(`0 hours from your last pull.`);
+          setTimeLastPull("0 hours");
         }
       });
     };
@@ -41,31 +40,38 @@ export function PullStatusMessage({ processState }) {
   }, []);
 
   useEffect(() => {
+    let intervalId;
+
     if (processState === "inProcess") {
       setCurrentMessage("Your pull is running");
-      return;
+    } else {
+      const messages = [
+        <span>
+          <span className="font-bold">{timeLastPull}</span> from your last pull.
+        </span>,
+        <span>
+          Your latest pull added
+          <span className="font-bold"> {scrapedCount} listings.</span>
+        </span>,
+      ];
+      let messageIndex = 0;
+
+      setCurrentMessage(messages[messageIndex]);
+      intervalId = setInterval(() => {
+        setIsVisible(false);
+        setTimeout(() => {
+          messageIndex = (messageIndex + 1) % messages.length;
+          setCurrentMessage(messages[messageIndex]);
+          setIsVisible(true);
+        }, 500); // fade-out (0.5s)
+      }, 6000);
     }
 
-    // Switch between messages every 6 seconds.
-    const messages = [
-      `${timeLastPull} from your last pull.`,
-      `Your latest pull added ${scrapedCount} listings.`,
-    ];
-    let messageIndex = 1;
-
-    const intervalId = setInterval(() => {
-      setIsVisible(false);
-      setTimeout(() => {
-        setCurrentMessage(messages[messageIndex]);
-        setIsVisible(true);
-        messageIndex = (messageIndex + 1) % messages.length;
-      }, 500); //fade-out (0.5s)
-    }, 6000);
-
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [processState, timeLastPull, scrapedCount]);
 
-  // Calculate the hours elapsed since the last pull.
   const calculateHoursElapsed = (lastPullTime) => {
     const now = new Date();
     const lastPull = new Date(lastPullTime);

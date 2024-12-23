@@ -7,6 +7,7 @@ import { StartButton } from "./components/startButton/StartButton";
 import { StopPulls } from "./components/stopPull/StopPulls";
 import { Toggle } from "./components/toggle/Toggle";
 import { PullStatusMessage } from "./components/pullStatus/PullStatusMessage";
+import { MessageSyncing } from "./components/messageSyncing";
 
 const MAX_TIME = 280000; // 4 minutes y 40 seconds en milliseconds
 const MESSAGE_RESET_DELAY = 5000; // set time to restart alert message
@@ -220,9 +221,9 @@ function App() {
       className="w-[420px] h-[585px] flex flex-col items-center bg-[#F5F8FA]"
       style={{ width: "420px", height: "600px" }}
     >
-      <div className="flex flex-col items-center justify-around bg-white w-[420px] h-[539px] border border-[#E3E3E3]">
+      <div className="flex flex-col items-center justify-around  w-[420px] h-[527px] border border-[#E3E3E3]">
         <div className="flex flex-row justify-between items-center w-full px-4 pt-4">
-          <div className="justify-between flex flex-row items-center w-full mb-[10px]">
+          <div className="justify-between flex flex-row items-center w-full mb-[10px] ">
             <img
               src="icons/vettxLogo.svg"
               alt="VETTX Logo"
@@ -239,7 +240,7 @@ function App() {
           </div>
         </div>
 
-        <div className="flex flex-row justify-start w-full border-b-[1px] border-[#E3E3E3]">
+        <div className="flex flex-row justify-start w-full border-b-[1px]   h-[48px]">
           <Button
             text="Listings"
             isSelected={selectedTab === "Listings"}
@@ -253,38 +254,32 @@ function App() {
         </div>
 
         {selectedTab === "Listings" ? (
-          <div className="flex flex-col items-center">
-            <div className="mt-6">
+          <div className="flex flex-col items-center h-[410px] w-full">
+            <div className="mt-[24px]">
               <Toggle checked={isToggleActive} onChange={handleToggleChange} />
             </div>
-            <div className="flex flex-col items-center mb-4 space-y-[12px]">
-              <ActionMessage showMessage={processState} />
+
+            <ActionMessage showMessage={processState} />
+            <div className="mt-[12px]">
               <PullStatusMessage processState={processState} />
             </div>
-
-            <StartButton
-              onStart={handleStart}
-              processState={processState}
-              maxTime={MAX_TIME}
-            />
-            <div className="flex flex-col items-center">
-              <div className="mt-4 px-4 w-full">
-                <Message processState={messageState} />
-              </div>
+            <div className="mt-[16px] mb-[22.5px]">
+              <StartButton
+                onStart={handleStart}
+                processState={processState}
+                maxTime={MAX_TIME}
+              />
             </div>
-            <div className="mt-[13px] mb-[25px]">
+            <div className="px-4 w-full">
+              <Message processState={messageState} />
+            </div>
+            <div className="mt-[13px] ">
               {showStopButton && <StopPulls onClick={handleStop} />}
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full py-4 px-6 bg-[#F1F3F5] border border-[#E3E3E3] rounded-lg shadow-md">
-            <div className="flex items-center flex-col space-y-3">
-              <div className="w-8 h-8 animate-spin border-4 border-[#E3E3E3] border-t-4 border-t-[#4F8DFF] rounded-full"></div>
-              <p className="text-[#727272] text-lg font-semibold text-center">
-                We're building something awesome, just for you! Check back soon
-              </p>
-              <p className="text-xl">🚧</p>
-            </div>
+          <div className="h-[420px]">
+            <MessageSyncing />
           </div>
         )}
       </div>

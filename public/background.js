@@ -10,7 +10,7 @@ let scrapedData = [];
 let isScrapingActive = false;
 let interval;
 
-const MAX_TIME = 280000; // set en 4 minutes y 40 seconds
+const MAX_TIME = 280000; // 4 minutes and 40 seconds
 chrome.storage.local.set({ MAX_TIME: MAX_TIME });
 
 function updateIcon(status) {
