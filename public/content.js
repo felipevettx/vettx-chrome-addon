@@ -8,7 +8,7 @@ const CONFIG = {
   SCROLL_DISTANCE: Math.ceil(window.innerHeight * 0.7),
   LOAD_DELAY: 3000,
   MAX_RETRIES: 5,
-  DEFAULT_MAX_TIME: 280000,
+  DEFAULT_MAX_TIME: 300000,
 };
 
 /**

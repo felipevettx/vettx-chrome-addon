@@ -8,6 +8,7 @@ export function Message({ processState }) {
 
   switch (processState) {
     case "initial":
+    case "tabsClosed":
       containerStyle += " bg-[#A1DBFF80]";
       message = (
         <p className={`text-xs ${textColor} text-left`}>
@@ -20,6 +21,7 @@ export function Message({ processState }) {
     case "noExecution":
     case "start":
     case "processInProgress":
+    case "tabsOpen":
       containerStyle += " bg-[#A1DBFF80]";
       message = (
         <p className={`text-xs ${textColor} text-left`}>

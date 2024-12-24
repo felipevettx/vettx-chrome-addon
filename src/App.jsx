@@ -9,7 +9,7 @@ import { Toggle } from "./components/toggle/Toggle";
 import { PullStatusMessage } from "./components/pullStatus/PullStatusMessage";
 import { MessageSyncing } from "./components/messageSyncing";
 
-const MAX_TIME = 280000;
+const MAX_TIME = 300000;
 const MESSAGE_RESET_DELAY = 5000;
 
 function App() {
@@ -20,7 +20,7 @@ function App() {
   const [isToggleActive, setIsToggleActive] = useState(false);
 
   const startFullProcess = useCallback(() => {
-    console.log("calling to startFullProcess");
+    console.log("calling to  startFullProcess");
     chrome.runtime.sendMessage({ action: "startFullProcess" }, (response) => {
       if (chrome.runtime.lastError) {
         console.error("Error:", chrome.runtime.lastError);
@@ -31,7 +31,7 @@ function App() {
         setShowStopButton(true);
         setMessageState("processInProgress");
       } else if (response && response.error === "processAlreadyRunning") {
-        console.log("Process is already running");
+        console.log("The process is already running");
         setProcessState("inProcess");
         setShowStopButton(true);
         setMessageState("processInProgress");
@@ -39,9 +39,28 @@ function App() {
         console.log("Login required");
         setMessageState("loginRequired");
       } else {
-        console.error("Failed to start the complete process:", response);
+        console.error("Failed to start entire process:", response);
         setMessageState("error");
       }
+    });
+  }, []);
+
+  const checkTabsStatus = useCallback(() => {
+    chrome.tabs.query({}, (tabs) => {
+      const facebookTab = tabs.find(
+        (tab) => tab.url && tab.url.includes("facebook.com")
+      );
+      const vettxTab = tabs.find(
+        (tab) => tab.url && tab.url.includes("vettx.com")
+      );
+
+      const newMessageState =
+        facebookTab && vettxTab ? "tabsOpen" : "tabsClosed";
+
+      setMessageState(newMessageState);
+      chrome.storage.local.set({
+        messageState: newMessageState,
+      });
     });
   }, []);
 
@@ -61,7 +80,6 @@ function App() {
       setMessageState(result.messageState || "noExecution");
 
       if (toggleState) {
-        console.log("Toggle is on, about to start entire process");
         startFullProcess();
       }
     };
@@ -86,7 +104,7 @@ function App() {
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
     };
-  }, [startFullProcess]);
+  }, [startFullProcess, checkTabsStatus]);
 
   const handleToggleChange = useCallback(
     (newState) => {
@@ -144,22 +162,18 @@ function App() {
       });
 
       setTimeout(() => {
-        chrome.tabs.query({}, (tabs) => {
-          const facebookTab = tabs.find(
-            (tab) => tab.url && tab.url.includes("facebook.com")
-          );
-          const vettxTab = tabs.find(
-            (tab) => tab.url && tab.url.includes("vettx.com")
-          );
-
-          setMessageState(facebookTab && vettxTab ? "tabsOpen" : "initial");
-          chrome.storage.local.set({
-            messageState: facebookTab && vettxTab ? "noExecution" : "initial",
-          });
-        });
+        checkTabsStatus();
       }, MESSAGE_RESET_DELAY);
     });
-  }, []);
+  }, [checkTabsStatus]);
+
+  useEffect(() => {
+    const tabCheckInterval = setInterval(checkTabsStatus, 5000);
+
+    return () => {
+      clearInterval(tabCheckInterval);
+    };
+  }, [checkTabsStatus]);
 
   return (
     <div

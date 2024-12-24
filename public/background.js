@@ -11,7 +11,7 @@ let isScrapingActive = false;
 let interval;
 let isProcessRunning = false;
 
-const MAX_TIME = 280000; // 4 minutes and 40 seconds
+const MAX_TIME = 300000; // 5 minutes
 chrome.storage.local.set({ MAX_TIME: MAX_TIME });
 
 function updateIcon(status) {
