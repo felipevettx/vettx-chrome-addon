@@ -9,8 +9,8 @@ import { Toggle } from "./components/toggle/Toggle";
 import { PullStatusMessage } from "./components/pullStatus/PullStatusMessage";
 import { MessageSyncing } from "./components/messageSyncing";
 
-const MAX_TIME = 280000; // 4 minutes y 40 seconds en milliseconds
-const MESSAGE_RESET_DELAY = 5000; // set time to restart alert message
+const MAX_TIME = 280000; // tiempo de operación establecido
+const MESSAGE_RESET_DELAY = 5000; // retraso para reiniciar la visualización del mensaje
 
 function App() {
   const [selectedTab, setSelectedTab] = useState("Listings");
@@ -19,46 +19,91 @@ function App() {
   const [messageState, setMessageState] = useState("noExecution");
   const [isToggleActive, setIsToggleActive] = useState(false);
 
-  //logic for toggle
-  useEffect(() => {
-    chrome.storage.local.get(
-      ["isToggleActive", "processState", "isScrapingActive"],
-      (result) => {
-        setIsToggleActive(result.isToggleActive || false);
-        setProcessState(result.processState || "start");
-        setShowStopButton(result.isScrapingActive || false);
-      }
-    );
-  }, []);
-
-  useEffect(() => {
-    if (isToggleActive) {
-      startFullProcess();
-    }
-  }, [isToggleActive]);
-
   const startFullProcess = useCallback(() => {
+    console.log("Llamando a startFullProcess");
     chrome.runtime.sendMessage({ action: "startFullProcess" }, (response) => {
-      if (response.success) {
+      if (chrome.runtime.lastError) {
+        console.error("Error:", chrome.runtime.lastError);
+        setMessageState("error");
+      } else if (response && response.success) {
+        console.log("Proceso completo iniciado con éxito");
         setProcessState("inProcess");
         setShowStopButton(true);
         setMessageState("processInProgress");
+      } else if (response && response.error === "processAlreadyRunning") {
+        console.log("El proceso ya está en ejecución");
+        setProcessState("inProcess");
+        setShowStopButton(true);
+        setMessageState("processInProgress");
+      } else if (response && response.error === "loginRequired") {
+        console.log("Se requiere inicio de sesión");
+        setMessageState("loginRequired");
       } else {
-        setMessageState(
-          response.error === "loginRequired" ? "loginRequired" : "error"
-        );
+        console.error("Error al iniciar el proceso completo:", response);
+        setMessageState("error");
       }
     });
   }, []);
+
+  useEffect(() => {
+    const loadInitialState = async () => {
+      const result = await chrome.storage.local.get([
+        "isToggleActive",
+        "processState",
+        "isScrapingActive",
+        "messageState",
+      ]);
+
+      const toggleState = result.isToggleActive || false;
+      setIsToggleActive(toggleState);
+      setProcessState(result.processState || "start");
+      setShowStopButton(result.isScrapingActive || false);
+      setMessageState(result.messageState || "noExecution");
+
+      if (toggleState) {
+        console.log(
+          "El toggle está activo, a punto de iniciar el proceso completo"
+        );
+        startFullProcess();
+      }
+    };
+
+    loadInitialState();
+
+    const handleStorageChange = (changes) => {
+      if (changes.processState) setProcessState(changes.processState.newValue);
+      if (changes.isScrapingActive)
+        setShowStopButton(changes.isScrapingActive.newValue);
+      if (changes.messageState) setMessageState(changes.messageState.newValue);
+      if (changes.isToggleActive) {
+        setIsToggleActive(changes.isToggleActive.newValue);
+        if (changes.isToggleActive.newValue) {
+          startFullProcess();
+        }
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+    };
+  }, [startFullProcess]);
 
   const handleToggleChange = useCallback(
     (newState) => {
       setIsToggleActive(newState);
       chrome.storage.local.set({ isToggleActive: newState });
+
       if (newState) {
+        chrome.storage.local.set({
+          activeTimer: true,
+          remaining: MAX_TIME / 1000,
+          processState: "inProcess",
+        });
         startFullProcess();
       } else {
-        chrome.runtime.sendMessage({ action: "stopScrape" });
+        chrome.runtime.sendMessage({ action: "stopScraping" });
         setProcessState("start");
         setShowStopButton(false);
         setMessageState("manuallyStopped");
@@ -67,60 +112,13 @@ function App() {
     [startFullProcess]
   );
 
-  //logic for tabs
-  const updateState = useCallback((newState) => {
-    setProcessState(newState);
-    chrome.storage.local.set({ processState: newState });
-  }, []);
-
-  useEffect(() => {
-    setSelectedTab("Listings");
-  }, []);
-
-  const loadInitialState = async () => {
-    const result = await chrome.storage.local.get([
-      "processState",
-      "isScrapingActive",
-      "messageState",
-      "MAX_TIME",
-    ]);
-    if (result.processState) updateState(result.processState);
-    if (result.isScrapingActive !== undefined)
-      setShowStopButton(result.isScrapingActive);
-    if (result.messageState) {
-      setMessageState(result.messageState);
-    } else {
-      setMessageState("initial");
-    }
-    if (!result.MAX_TIME) chrome.storage.local.set({ MAX_TIME });
-  };
-
-  useEffect(() => {
-    loadInitialState();
-
-    const handleStorageChange = (changes) => {
-      if (changes.processState) updateState(changes.processState.newValue);
-      if (changes.isScrapingActive)
-        setShowStopButton(changes.isScrapingActive.newValue);
-      if (changes.messageState) setMessageState(changes.messageState.newValue);
-    };
-
-    chrome.storage.onChanged.addListener(handleStorageChange);
-
-    return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
-    };
-  }, [updateState, loadInitialState]);
-
   const handleStart = useCallback(() => {
-    console.log("Start button clicked");
     setMessageState("initial");
     chrome.runtime.sendMessage({ action: "openMultipleTabs" }, (response) => {
       if (chrome.runtime.lastError) {
-        console.log(chrome.runtime.lastError);
         setMessageState("error");
       } else if (response && response.loggedIn) {
-        updateState("inProcess");
+        setProcessState("inProcess");
         setMessageState("processInProgress");
         setShowStopButton(true);
         chrome.storage.local.set({
@@ -129,90 +127,39 @@ function App() {
           messageState: "processInProgress",
           remaining: MAX_TIME / 1000,
         });
-        chrome.action.setIcon({ path: "icons/enable.png" });
       } else {
         setMessageState("loginRequired");
       }
     });
-  }, [updateState]);
-
-  const checkTabsAndUpdateMessage = useCallback(() => {
-    chrome.tabs.query({}, (tabs) => {
-      const facebookTab = tabs.find(
-        (tab) => tab.url && tab.url.includes("facebook.com")
-      );
-      const vettxTab = tabs.find(
-        (tab) => tab.url && tab.url.includes("vettx.com")
-      );
-
-      if (facebookTab && vettxTab) {
-        setMessageState("tabsOpen");
-      } else {
-        setMessageState("initial");
-      }
-      chrome.storage.local.set({
-        messageState: facebookTab && vettxTab ? "noExecution" : "initial",
-      });
-    });
   }, []);
 
   const handleStop = useCallback(() => {
-    chrome.runtime.sendMessage({ action: "stopScraping" }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error(chrome.runtime.lastError);
-      } else {
-        updateState("start");
-        setShowStopButton(false);
-        setMessageState("manuallyStopped");
-        chrome.storage.local.set({
-          isScrapingActive: false,
-          activeTimer: false,
-          remaining: 0,
-          messageState: "manuallyStopped",
-        });
-
-        // Retry after de 10 seconds
-        setTimeout(() => {
-          checkTabsAndUpdateMessage();
-        }, MESSAGE_RESET_DELAY);
-      }
-    });
-  }, [updateState]);
-
-  useEffect(() => {
-    const checkTabsStatus = () => {
-      chrome.tabs.query({}, (tabs) => {
-        const facebookTab = tabs.find(
-          (tab) => tab.url && tab.url.includes("facebook.com")
-        );
-        const vettxTab = tabs.find(
-          (tab) => tab.url && tab.url.includes("vettx.com")
-        );
-
-        if (processState === "inProcess") {
-          if (!facebookTab) {
-            setMessageState("facebookClosed");
-            handleStop();
-          } else if (!vettxTab) {
-            setMessageState("vettxClosed");
-            handleStop();
-          }
-        } else {
-          checkTabsAndUpdateMessage();
-        }
+    chrome.runtime.sendMessage({ action: "stopScraping" }, () => {
+      setProcessState("start");
+      setShowStopButton(false);
+      setMessageState("manuallyStopped");
+      chrome.storage.local.set({
+        isScrapingActive: false,
+        activeTimer: false,
+        remaining: 0,
+        messageState: "manuallyStopped",
       });
-    };
 
-    const intervalId = setInterval(checkTabsStatus, 5000); // Check every 5 seconds
+      setTimeout(() => {
+        chrome.tabs.query({}, (tabs) => {
+          const facebookTab = tabs.find(
+            (tab) => tab.url && tab.url.includes("facebook.com")
+          );
+          const vettxTab = tabs.find(
+            (tab) => tab.url && tab.url.includes("vettx.com")
+          );
 
-    return () => clearInterval(intervalId);
-  }, [processState, handleStop, checkTabsAndUpdateMessage]);
-
-  useEffect(() => {
-    chrome.storage.local.get("remaining", (result) => {
-      if (result.remaining !== undefined) {
-        setRemainingTime(result.remaining);
-      }
+          setMessageState(facebookTab && vettxTab ? "tabsOpen" : "initial");
+          chrome.storage.local.set({
+            messageState: facebookTab && vettxTab ? "noExecution" : "initial",
+          });
+        });
+      }, MESSAGE_RESET_DELAY);
     });
   }, []);
 

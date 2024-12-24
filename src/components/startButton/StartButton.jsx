@@ -70,11 +70,11 @@ export function StartButton({ onStart, processState, maxTime }) {
       <RingTimer maxTime={maxTime} />
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="flex flex-col items-center justify-center text-white">
-          <span className="font-hkg text-[22px] font-medium">
+          <span className="font-hkg text-[22px] font-medium leading-none">
             {!activeTimer ? "START!" : formatTime(remaining)}
           </span>
           {activeTimer && (
-            <div className="font-hkg text-[11px] tracking-wide text-white">
+            <div className="font-hkg text-[11px] tracking-wide text-white mt-1 leading-none">
               REMAINING
             </div>
           )}

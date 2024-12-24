@@ -72,6 +72,16 @@ export function Message({ processState }) {
         </p>
       );
       break;
+    case "loginRequired":
+      containerStyle += " bg-[#FDBCC280] w-full";
+      textColor = "text-[#F82032]";
+      iconSrc = "icons/leadingIconError.png";
+      message = (
+        <p className={`text-xs ${textColor} text-left`}>
+          Please log in to both VETTX and Facebook to continue the process.
+        </p>
+      );
+      break;
     default:
       return null;
   }

@@ -9,6 +9,7 @@ const urlPage = {
 let scrapedData = [];
 let isScrapingActive = false;
 let interval;
+let isProcessRunning = false;
 
 const MAX_TIME = 280000; // 4 minutes and 40 seconds
 chrome.storage.local.set({ MAX_TIME: MAX_TIME });
@@ -31,6 +32,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
     const isToggleActive = changes.isToggleActive.newValue;
     if (isToggleActive) {
       console.log("Toggle activated. Starting full process...");
+      chrome.storage.local.set({
+        activeTimer: true,
+        remaining: MAX_TIME / 1000,
+      });
       startFullProcess();
     } else {
       console.log("Toggle deactivated. Stopping scraping process...");
@@ -89,33 +94,30 @@ function openTabsInOrder(urls) {
 
       const url = urls[index];
       chrome.tabs.query({}, (tabs) => {
-        const existingTab = tabs.find(
+        const existingTabs = tabs.filter(
           (tab) => tab.url && tab.url.startsWith(url)
         );
-        if (existingTab) {
-          if (url.includes("facebook.com")) {
-            chrome.tabs.update(existingTab.id, { active: true }, async () => {
-              loadCount++;
-              if (loadCount === 2) {
-                resolve();
-              }
+        if (existingTabs.length > 0) {
+          console.log(`Tab for ${url} already exists. Activating it.`);
+          chrome.tabs.update(existingTabs[0].id, { active: true }, () => {
+            loadCount++;
+            if (loadCount === urls.length) {
+              resolve();
+            } else {
               index++;
               openNextTab();
-            });
-          } else {
-            loadCount++;
-            index++;
-            openNextTab();
-          }
+            }
+          });
         } else {
           chrome.tabs.create({ url }, async (newTab) => {
             await waitForPageToLoad(newTab.id);
             loadCount++;
-            if (loadCount === 2) {
+            if (loadCount === urls.length) {
               resolve();
+            } else {
+              index++;
+              openNextTab();
             }
-            index++;
-            openNextTab();
           });
         }
       });
@@ -190,9 +192,17 @@ function stopScraping() {
     }
   });
   resetIconToDefault();
+  isProcessRunning = false;
 }
 
 async function startFullProcess() {
+  if (isProcessRunning) {
+    console.log("Process is already running. Ignoring new request.");
+    chrome.storage.local.set({ messageState: "processInProgress" });
+    return { success: false, error: "processAlreadyRunning" };
+  }
+
+  isProcessRunning = true;
   try {
     await openTabsInOrder([urlPage.vettx, urlPage.facebook]);
     console.log("Tabs opened. Checking login status...");
@@ -200,12 +210,19 @@ async function startFullProcess() {
     if (loggedIn) {
       console.log("User is logged in. Starting scraping process...");
       startScraping();
+      chrome.storage.local.set({ messageState: "processInProgress" });
+      return { success: true };
     } else {
       console.log("User is not logged in.");
-      chrome.runtime.sendMessage({ action: "loginRequired" });
+      isProcessRunning = false;
+      chrome.storage.local.set({ messageState: "loginRequired" });
+      return { success: false, error: "loginRequired" };
     }
   } catch (error) {
     console.error("Error in startFullProcess:", error);
+    isProcessRunning = false;
+    chrome.storage.local.set({ messageState: "error" });
+    return { success: false, error: error.message };
   }
 }
 
@@ -244,7 +261,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case "checkToggle":
       chrome.storage.local.get("isToggleActive", (result) => {
-        if (isToggleActive) {
+        if (result.isToggleActive) {
           console.log("Toggle is active. Starting full process...");
           startFullProcess();
         }
@@ -262,6 +279,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       chrome.storage.local.set({ isToggleActive: message.isToggleActive });
       break;
+
+    case "startFullProcess":
+      console.log("Received startFullProcess action");
+      if (isProcessRunning) {
+        console.log("Process is already running. Ignoring new request.");
+        chrome.storage.local.set({ messageState: "processInProgress" });
+        sendResponse({ success: false, error: "processAlreadyRunning" });
+      } else {
+        startFullProcess()
+          .then((result) => {
+            sendResponse(result);
+          })
+          .catch((error) => {
+            console.error("Error in startFullProcess:", error);
+            isProcessRunning = false;
+            chrome.storage.local.set({ messageState: "error" });
+            sendResponse({ success: false, error: error.message });
+          });
+      }
+      return true;
 
     default:
       console.log("Unknown action", message.action);
