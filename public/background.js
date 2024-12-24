@@ -242,6 +242,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       break;
 
+    case "checkToggle":
+      chrome.storage.local.get("isToggleActive", (result) => {
+        if (isToggleActive) {
+          console.log("Toggle is active. Starting full process...");
+          startFullProcess();
+        }
+      });
+      break;
+
+    case "toggleStateChanged":
+      if (!message.isToggleActive && isScrapingActive) {
+        console.log("Toggle deactivated. Stopping current process...");
+        stopScraping();
+      } else if (message.isToggleActive) {
+        console.log(
+          "Toggle activated. Process will start on popup load if needed."
+        );
+      }
+      chrome.storage.local.set({ isToggleActive: message.isToggleActive });
+      break;
+
     default:
       console.log("Unknown action", message.action);
   }
