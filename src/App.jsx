@@ -9,8 +9,8 @@ import { Toggle } from "./components/toggle/Toggle";
 import { PullStatusMessage } from "./components/pullStatus/PullStatusMessage";
 import { MessageSyncing } from "./components/messageSyncing";
 
-const MAX_TIME = 280000; // tiempo de operación establecido
-const MESSAGE_RESET_DELAY = 5000; // retraso para reiniciar la visualización del mensaje
+const MAX_TIME = 280000;
+const MESSAGE_RESET_DELAY = 5000;
 
 function App() {
   const [selectedTab, setSelectedTab] = useState("Listings");
@@ -20,26 +20,26 @@ function App() {
   const [isToggleActive, setIsToggleActive] = useState(false);
 
   const startFullProcess = useCallback(() => {
-    console.log("Llamando a startFullProcess");
+    console.log("calling to startFullProcess");
     chrome.runtime.sendMessage({ action: "startFullProcess" }, (response) => {
       if (chrome.runtime.lastError) {
         console.error("Error:", chrome.runtime.lastError);
         setMessageState("error");
       } else if (response && response.success) {
-        console.log("Proceso completo iniciado con éxito");
+        console.log("Complete process started successfully");
         setProcessState("inProcess");
         setShowStopButton(true);
         setMessageState("processInProgress");
       } else if (response && response.error === "processAlreadyRunning") {
-        console.log("El proceso ya está en ejecución");
+        console.log("Process is already running");
         setProcessState("inProcess");
         setShowStopButton(true);
         setMessageState("processInProgress");
       } else if (response && response.error === "loginRequired") {
-        console.log("Se requiere inicio de sesión");
+        console.log("Login required");
         setMessageState("loginRequired");
       } else {
-        console.error("Error al iniciar el proceso completo:", response);
+        console.error("Failed to start the complete process:", response);
         setMessageState("error");
       }
     });
@@ -61,9 +61,7 @@ function App() {
       setMessageState(result.messageState || "noExecution");
 
       if (toggleState) {
-        console.log(
-          "El toggle está activo, a punto de iniciar el proceso completo"
-        );
+        console.log("Toggle is on, about to start entire process");
         startFullProcess();
       }
     };
