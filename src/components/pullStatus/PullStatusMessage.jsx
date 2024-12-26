@@ -63,8 +63,8 @@ export function PullStatusMessage({ processState }) {
           messageIndex = (messageIndex + 1) % messages.length;
           setCurrentMessage(messages[messageIndex]);
           setIsVisible(true);
-        }, 500); // fade-out (0.5s)
-      }, 6000);
+        }, 500);
+      }, 4000);
     }
 
     return () => {
