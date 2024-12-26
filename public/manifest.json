@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Vettx addon - React",
-  "version": "1.5",
-  "description": "Downloader of data from Facebook Marketplace make with react and tailwind",
+  "name": "Vettx Chrome Addon",
+  "version": "1.0",
+  "description": "Facebook Marketplace Car Listings Downloader",
   "permissions": [
     "activeTab",
     "storage",
