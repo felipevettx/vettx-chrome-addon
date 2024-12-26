@@ -5,7 +5,7 @@ export default {
     extend: {
       fontFamily: {
         dmSans: ["dm sans", "sans-serif"],
-        hkg: ["hkGrotesk wide", "sans-serif"],
+        hkg: ["HKGrotesk wide", "sans-serif"],
       },
     },
   },

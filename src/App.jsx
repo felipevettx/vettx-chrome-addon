@@ -176,13 +176,10 @@ function App() {
   }, [checkTabsStatus]);
 
   return (
-    <div
-      className="w-[420px] h-[585px] flex flex-col items-center bg-[#F5F8FA]"
-      style={{ width: "420px", height: "600px" }}
-    >
+    <div className="w-[420px] h-[585px] flex flex-col items-center bg-[#F5F8FA]">
       <div className="flex flex-col items-center justify-around  w-[420px] h-[527px] border border-[#E3E3E3]">
         <div className="flex flex-row justify-between items-center w-full px-4 pt-4">
-          <div className="justify-between flex flex-row items-center w-full mb-[10px] ">
+          <div className="justify-between flex flex-row items-center w-full  mb-[10px] ">
             <img
               src="icons/vettxLogo.svg"
               alt="VETTX Logo"
@@ -199,7 +196,7 @@ function App() {
           </div>
         </div>
 
-        <div className="flex flex-row justify-start w-full border-b-[1px]   h-[48px]">
+        <div className="flex flex-row justify-start w-full border-b-[1px] h-[48px]">
           <Button
             text="Listings"
             isSelected={selectedTab === "Listings"}
@@ -213,27 +210,28 @@ function App() {
         </div>
 
         {selectedTab === "Listings" ? (
-          <div className="flex flex-col items-center h-[410px] w-full">
-            <div className="mt-[24px]">
+          <div className="flex flex-col items-center h-[410px] w-full px-4">
+            <div className="mt-[24px] mb-[22.5px] ">
               <Toggle checked={isToggleActive} onChange={handleToggleChange} />
             </div>
-
             <ActionMessage showMessage={processState} />
-            <div className="mt-[12px]">
-              <PullStatusMessage processState={processState} />
-            </div>
-            <div className="mt-[16px] mb-[22.5px]">
+            <PullStatusMessage processState={processState} />
+            <div
+              className={`flex flex-col items-center mt-4 ${
+                showStopButton ? "space-y-[13.5px]" : "space-y-[16px]"
+              }`}
+            >
               <StartButton
                 onStart={handleStart}
                 processState={processState}
                 maxTime={MAX_TIME}
               />
-            </div>
-            <div className="px-4 w-full">
-              <Message processState={messageState} />
-            </div>
-            <div className="mt-[13px] ">
-              {showStopButton && <StopPulls onClick={handleStop} />}
+              <div className="mt-4 w-full">
+                <Message processState={messageState} />
+              </div>
+              <div className="mt-4">
+                {showStopButton && <StopPulls onClick={handleStop} />}
+              </div>
             </div>
           </div>
         ) : (

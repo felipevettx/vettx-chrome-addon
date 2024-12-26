@@ -24,7 +24,7 @@ export function Toggle({ checked, onChange }) {
           {checked && <FaCheck className="text-[#2BBF7A] text-[10px]" />}
         </div>
       </div>
-      <span className="text-sm text-[#919191] font-dmSans font-normal">
+      <span className="text-sm text-[#919191] font-dmSans leading-[18.23px]">
         Automatic pulls
       </span>
     </label>

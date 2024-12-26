@@ -5,4 +5,11 @@
 /* fonts: */
 
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&display=swap");
+/* @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&display=swap"); */
+
+@font-face {
+  font-family: "HKGrotesk Wide";
+  src: url("../public/fonts/HKGroteskWide_2020W/WEB/HKGroteskWide-Regular.woff");
+  font-weight: normal;
+  font-style: normal;
+}
