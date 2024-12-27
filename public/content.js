@@ -4,10 +4,10 @@ console.log("Content script Loaded");
  * Configuration object for scraping parameters
  */
 const CONFIG = {
-  SCROLL_INTERVAL: 1500,
-  SCROLL_DISTANCE: Math.ceil(window.innerHeight * 0.7),
-  LOAD_DELAY: 3000,
-  MAX_RETRIES: 5,
+  SCROLL_INTERVAL: 900,
+  SCROLL_DISTANCE: Math.ceil(window.innerHeight * 0.8),
+  LOAD_DELAY: 1800,
+  MAX_RETRIES: 15,
   DEFAULT_MAX_TIME: 300000,
 };
 
@@ -34,6 +34,31 @@ let isScrapingActive = false;
 let totalProductsScraped = 0;
 let retryCount = 0;
 let noNewProductsCount = 0;
+
+function sendMessageWithRetry(message, maxRetries = 3) {
+  return new Promise((resolve, reject) => {
+    function attemptSend(retriesLeft) {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            `Error sending message: ${chrome.runtime.lastError.message}`
+          );
+          if (retriesLeft > 0) {
+            console.log(`Retrying... (${retriesLeft} attempts left)`);
+            setTimeout(() => attemptSend(retriesLeft - 1), 1000);
+          } else {
+            reject(
+              new Error(`Failed to send message after ${maxRetries} attempts`)
+            );
+          }
+        } else {
+          resolve(response);
+        }
+      });
+    }
+    attemptSend(maxRetries);
+  });
+}
 
 chrome.storage.local.get("MAX_TIME", async (result) => {
   const MAX_TIME = result.MAX_TIME || CONFIG.DEFAULT_MAX_TIME;
@@ -95,19 +120,27 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
   }
 
   /**
-   * Extracts product data from a given element
-   * @param {Element} productElement - The DOM element containing product information
-   * @returns {Object} - An object containing the product's id and link
+    Extracts product data from a given element
+    @param {Element} productElement - The DOM element containing product information
+    @returns {Object} - An object containing the product's id and link
    */
   function extractProductData(productElement) {
-    const link = productElement.href;
-    const productId =
-      link.split("/item/")[1]?.split("/")[0] || "ID not available";
+    try {
+      const link =
+        productElement.href || productElement.querySelector("a")?.href;
+      const productId =
+        link?.split("/item/")[1]?.split("/")[0] || "ID not available";
 
-    return {
-      id: productId,
-      link: link,
-    };
+      if (!link || !productId) {
+        log(`Invalid product element: ${productElement}`, "warn");
+        return null;
+      }
+
+      return { id: productId, link };
+    } catch (error) {
+      log(`Error extracting product data: ${error.message}`, "error");
+      return null;
+    }
   }
 
   /**
@@ -138,15 +171,17 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
     });
   }
 
-  /**
-   * Main function to scrape the Facebook Marketplace
-   */
+  //Main function to scrape the Facebook Marketplace
+
   async function scrapeMarketplace() {
     log("Waiting for page to fully load...");
     await waitForPageLoad();
     log("Page loaded. Starting data extraction from Marketplace...");
 
     let allProducts = [];
+    const BATCH_SIZE = 10;
+    let batchCounter = 0;
+
     try {
       while (isScrapingActive) {
         const elapsedTime = Date.now() - startTime;
@@ -155,6 +190,7 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
           break;
         }
 
+        log("Scrolling page...");
         await scrollPage();
         log("Page scrolled, waiting for new products to load");
 
@@ -163,6 +199,7 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
         }
 
         try {
+          log("Waiting for product elements...");
           const productElements = await waitForElement([
             'a[href^="/marketplace/item/"]',
           ]);
@@ -170,14 +207,14 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
 
           if (productElements.length === 0) {
             retryCount++;
-            if (retryCount >= CONFIG.MAX_RETRIES) {
-              log("Maximum retries reached. Stopping the process.", "warn");
-              break;
-            }
             log(
               `No products found. Retry ${retryCount}/${CONFIG.MAX_RETRIES}`,
               "warn"
             );
+            if (retryCount >= CONFIG.MAX_RETRIES) {
+              log("Maximum retries reached. Stopping the process.", "warn");
+              break;
+            }
             continue;
           }
 
@@ -185,12 +222,19 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
 
           const newProducts = Array.from(productElements)
             .map(extractProductData)
-            .filter((product) => !allProducts.some((p) => p.id === product.id));
+            .filter(
+              (product) =>
+                product && !allProducts.some((p) => p.id === product.id)
+            );
 
           log(`New unique products found: ${newProducts.length}`);
 
           if (newProducts.length === 0) {
             noNewProductsCount++;
+            log(
+              `No new products found. Attempt ${noNewProductsCount}/${CONFIG.MAX_RETRIES}`,
+              "warn"
+            );
             if (noNewProductsCount >= CONFIG.MAX_RETRIES) {
               log(
                 "No new products found after several attempts. Stopping the process.",
@@ -198,10 +242,6 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
               );
               break;
             }
-            log(
-              `No new products found. Attempt ${noNewProductsCount}/${CONFIG.MAX_RETRIES}`,
-              "warn"
-            );
             continue;
           }
 
@@ -211,11 +251,40 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
 
           log(`Total products found: ${totalProductsScraped}`);
 
-          chrome.runtime.sendMessage({
-            action: "updateStatus",
-            status: "inProcess",
-            message: `processInProgress - Scraped ${totalProductsScraped} products`,
-          });
+          try {
+            await sendMessageWithRetry({
+              action: "updateStatus",
+              status: "inProcess",
+              message: `processInProgress - Scraped ${totalProductsScraped} products`,
+            });
+            log("updateStatus message sent successfully");
+          } catch (error) {
+            log(
+              `Error sending updateStatus message: ${error.message}`,
+              "error"
+            );
+          }
+
+          batchCounter += newProducts.length;
+          if (batchCounter >= BATCH_SIZE) {
+            log(
+              `Sending batch of ${batchCounter} products to background script`
+            );
+            try {
+              await sendMessageWithRetry({
+                action: "updateScrapedData",
+                payload: allProducts.slice(-batchCounter),
+                totalScraped: totalProductsScraped,
+              });
+              log("updateScrapedData message sent successfully");
+            } catch (error) {
+              log(
+                `Error sending updateScrapedData message: ${error.message}`,
+                "error"
+              );
+            }
+            batchCounter = 0;
+          }
         } catch (error) {
           log(`Error while retrieving products: ${error.message}`, "error");
           retryCount++;
@@ -223,11 +292,21 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
             log("Maximum retries reached. Stopping scraping.", "warn");
             break;
           }
-          log(
-            `An error occurred. Please retry. ${retryCount}/${CONFIG.MAX_RETRIES}`,
-            "warn"
-          );
         }
+      }
+
+      // After the scraping loop
+      log("Scraping completed. Sending final data to background script...");
+      try {
+        const response = await sendMessageWithRetry({
+          action: "scrapeComplete",
+          payload: allProducts,
+          totalScraped: totalProductsScraped,
+        });
+        log("scrapeComplete message sent successfully");
+        log("Response from background script:", response);
+      } catch (error) {
+        log(`Error sending scrapeComplete message: ${error.message}`, "error");
       }
 
       log(
@@ -237,25 +316,36 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
         log(`Sample of extracted data: ${JSON.stringify(allProducts[0])}`);
       }
 
-      chrome.runtime.sendMessage({
-        action: "scrapeComplete",
-        payload: allProducts,
-      });
-
-      chrome.runtime.sendMessage({
-        action: "updateStatus",
-        status: "start",
-        message: `noExecution - Scraping completed. Total products: ${totalProductsScraped}`,
-      });
+      try {
+        await sendMessageWithRetry({
+          action: "updateStatus",
+          status: "start",
+          message: `noExecution - Scraping completed. Total products: ${totalProductsScraped}`,
+        });
+        log("Final updateStatus message sent successfully");
+      } catch (error) {
+        log(
+          `Error sending final updateStatus message: ${error.message}`,
+          "error"
+        );
+      }
     } catch (error) {
       log(`Fatal error during the process: ${error.message}`, "error");
-      chrome.runtime.sendMessage({
-        action: "updateStatus",
-        status: "start",
-        message: "error",
-        error: error.message,
-        stack: error.stack,
-      });
+      try {
+        await sendMessageWithRetry({
+          action: "updateStatus",
+          status: "start",
+          message: "error",
+          error: error.message,
+          stack: error.stack,
+        });
+        log("Error updateStatus message sent successfully");
+      } catch (sendError) {
+        log(
+          `Error sending error updateStatus message: ${sendError.message}`,
+          "error"
+        );
+      }
     } finally {
       isScrapingActive = false;
       log("Scraping process finished");
@@ -266,10 +356,29 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
     if (message.action === "scrape") {
       log("Starting scraping process");
       isScrapingActive = true;
-      scrapeMarketplace();
+      scrapeMarketplace()
+        .then(() => {
+          sendResponse({ status: "Scraping process completed" });
+        })
+        .catch((error) => {
+          sendResponse({ status: "Error", error: error.message });
+        });
+      return true; // Indicates that the response is asynchronous
     } else if (message.action === "stopScrape") {
       log("Stopping the scraping process");
       isScrapingActive = false;
+      sendResponse({ status: "Scraping process stopped" });
+    }
+  });
+
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "logScrapedData") {
+      console.log("Received scraped data in content script:");
+      console.log(JSON.stringify(message.data, null, 2));
+      sendResponse({ status: "Data logged successfully" });
+    } else if (message.action === "dataReceived") {
+      console.log("Background script confirmed data reception");
+      sendResponse({ status: "Confirmation received" });
     }
   });
 });

@@ -1,5 +1,12 @@
 console.log("Background script loaded");
 
+function logScrapedData(data) {
+  console.log("Scraped data:");
+  data.forEach((item) => {
+    console.log(`ID: ${item.id}, Link: ${item.link}`);
+  });
+}
+
 const urlPage = {
   facebook:
     "https://www.facebook.com/marketplace/105496622817769/cars?minPrice=5000&maxPrice=26000&maxMileage=130000&maxYear=2021&minYear=2014&sortBy=creation_time_descend&exact=true&topLevelVehicleType=car_truck",
@@ -176,7 +183,17 @@ function startScraping() {
   console.log("Scraping started");
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: "scrape" });
+      chrome.tabs.sendMessage(tabs[0].id, { action: "scrape" }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            `Error starting scrape: ${chrome.runtime.lastError.message}`
+          );
+        } else {
+          console.log("Scrape message sent successfully", response);
+        }
+      });
+    } else {
+      console.error("No active tab found to start scraping");
     }
   });
 }
@@ -186,11 +203,28 @@ function stopScraping() {
   clearInterval(interval);
   chrome.storage.local.set({ activeTimer: false, isScrapingActive: false });
   console.log("Scraping stopped");
+  logScrapedData(scrapedData);
+
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: "stopScrape" });
+      chrome.tabs.sendMessage(
+        tabs[0].id,
+        { action: "stopScrape" },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              `Error stopping scrape: ${chrome.runtime.lastError.message}`
+            );
+          } else {
+            console.log("Stop scrape message sent successfully", response);
+          }
+        }
+      );
+    } else {
+      console.error("No active tab found to stop scraping");
     }
   });
+
   resetIconToDefault();
   isProcessRunning = false;
 }
@@ -227,6 +261,7 @@ async function startFullProcess() {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("Received message:", message);
   switch (message.action) {
     case "startScraping":
       startScraping();
@@ -245,11 +280,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
 
     case "scrapeComplete":
-      scrapedData = message.payload;
-      chrome.storage.local.set({ scrapedCount: scrapedData.length });
-      console.log("Scraping completed. Total products:", scrapedData.length);
-      console.log("Scraped Data:", JSON.stringify(scrapedData, null, 2));
+      if (message.payload && Array.isArray(message.payload)) {
+        scrapedData = message.payload;
+        chrome.storage.local.set({ scrapedCount: scrapedData.length });
+        console.log(
+          `Scraping completed. Total products: ${message.totalScraped}`
+        );
+        logScrapedData(scrapedData);
+
+        // Send a message to the content script to confirm data reception
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: "dataReceived" });
+          }
+        });
+
+        // Confirm reception to the content script
+        sendResponse({ status: "Data received and logged successfully" });
+      } else {
+        console.error("ScrapeComplete received with invalid data:", message);
+      }
       stopScraping();
+      break;
+
+    case "updateScrapedData":
+      if (message.payload && Array.isArray(message.payload)) {
+        scrapedData = [...scrapedData, ...message.payload];
+        console.log(
+          `Received batch of data. Total products so far: ${message.totalScraped}`
+        );
+        console.log(
+          "Sample of latest batch:",
+          JSON.stringify(message.payload.slice(0, 5), null, 2)
+        );
+
+        sendResponse({ status: "Batch data received successfully" });
+      }
       break;
 
     case "updateStatus":
@@ -257,6 +323,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         processState: message.status,
         message: message.message,
       });
+      sendResponse({ status: "Status updated successfully" });
       break;
 
     case "checkToggle":
@@ -265,8 +332,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.log("Toggle is active. Starting full process...");
           startFullProcess();
         }
+        sendResponse({ status: "Toggle checked" });
       });
-      break;
+      return true;
 
     case "toggleStateChanged":
       if (!message.isToggleActive && isScrapingActive) {
@@ -278,6 +346,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         );
       }
       chrome.storage.local.set({ isToggleActive: message.isToggleActive });
+      sendResponse({ status: "Toggle state changed" });
       break;
 
     case "startFullProcess":
@@ -302,6 +371,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     default:
       console.log("Unknown action", message.action);
+      sendResponse({ status: "Unknown action" });
   }
 });
 
