@@ -1,8 +1,7 @@
 console.log("Content script Loaded");
 
-/**
- * Configuration object for scraping parameters
- */
+// Configuration object for scraping parameters
+
 const CONFIG = {
   SCROLL_INTERVAL: 900,
   SCROLL_DISTANCE: Math.ceil(window.innerHeight * 0.8),
@@ -11,11 +10,6 @@ const CONFIG = {
   DEFAULT_MAX_TIME: 300000,
 };
 
-/**
- * Simple logging function with different levels
- * @param {string} message - The message to log
- * @param {string} level - The log level (info, warn, error)
- */
 function log(message, level = "info") {
   const prefix = `[FB Marketplace Scraper] [${level.toUpperCase()}]`;
   switch (level) {
@@ -35,6 +29,13 @@ let totalProductsScraped = 0;
 let retryCount = 0;
 let noNewProductsCount = 0;
 
+/**
+ * Sends a message using the Chrome runtime API with retries.
+ * If the message fails to send, it will retry up to a specified number of times.
+ * @param {Object} message: The object to be sent.
+ * @param {number} [maxRetries] - The maximum number of retries.
+ * @Promise {Promise} - A Promise that resolves with the response from the message listener. or rejects with an error if all retries fail
+ */
 function sendMessageWithRetry(message, maxRetries = 3) {
   return new Promise((resolve, reject) => {
     function attemptSend(retriesLeft) {
@@ -60,13 +61,19 @@ function sendMessageWithRetry(message, maxRetries = 3) {
   });
 }
 
+/**
+ *Retrieves the maximum allowed time for the scraping process from Chrome storage.
+ * Initializes the scraping process and defines utility functions for the operation.
+ * @param {MAX_TIME} variable: Sets the maximum allowed time for the scraping process.
+ */
+
 chrome.storage.local.get("MAX_TIME", async (result) => {
   const MAX_TIME = result.MAX_TIME || CONFIG.DEFAULT_MAX_TIME;
   let startTime = Date.now();
 
   /**
    * Waits for the page to fully load
-   * @returns {Promise<void>}
+   * @return {Promise} Resolves when the page is fully loaded.
    */
   function waitForPageLoad() {
     return new Promise((resolve) => {
@@ -80,9 +87,10 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
 
   /**
    * Waits for elements matching the given selectors to appear in the DOM
-   * @param {string[]} selectors - Array of CSS selectors to search for
-   * @param {number} timeout - Maximum time to wait in milliseconds
-   * @returns {Promise<NodeListOf<Element>>}
+   * @param {srting[]} selectors - An array of CSS selectors to look for.
+   * @param {number} [timeout = 30000] - Time ( in miliiseconds) to wait before timing out.
+   *
+   * @return {Promise} Resolves with the found elements or rejects on timeout.
    */
   function waitForElement(selectors, timeout = 30000) {
     return new Promise((resolve, reject) => {
@@ -120,9 +128,10 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
   }
 
   /**
-    Extracts product data from a given element
-    @param {Element} productElement - The DOM element containing product information
-    @returns {Object} - An object containing the product's id and link
+   * Extracts product data from a given element
+   * @param {Element} productElement - The DOM element representing a product
+   *
+   * @returns {object} An object containing the product's ID and link, or null if extraction fails.
    */
   function extractProductData(productElement) {
     try {
@@ -144,9 +153,11 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
   }
 
   /**
-   * Scrolls the page to load more content
-   * @returns {Promise<void>}
+   * Scrolls the page to load more content.
+   *
+   * @returns {Promise} Resolves once scrolling is complete.
    */
+
   function scrollPage() {
     return new Promise((resolve) => {
       let totalHeight = 0;
@@ -171,7 +182,11 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
     });
   }
 
-  //Main function to scrape the Facebook Marketplace
+  /**
+   * Main function to scrape the Facebook Marketplace
+   *
+   * Extracts product data, scrolls the page, and send batches of products to the background script.
+   */
 
   async function scrapeMarketplace() {
     log("Waiting for page to fully load...");
@@ -295,7 +310,6 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
         }
       }
 
-      // After the scraping loop
       log("Scraping completed. Sending final data to background script...");
       try {
         const response = await sendMessageWithRetry({
@@ -363,7 +377,7 @@ chrome.storage.local.get("MAX_TIME", async (result) => {
         .catch((error) => {
           sendResponse({ status: "Error", error: error.message });
         });
-      return true; // Indicates that the response is asynchronous
+      return true;
     } else if (message.action === "stopScrape") {
       log("Stopping the scraping process");
       isScrapingActive = false;

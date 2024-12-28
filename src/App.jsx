@@ -9,8 +9,8 @@ import { Toggle } from "./components/toggle/Toggle";
 import { PullStatusMessage } from "./components/pullStatus/PullStatusMessage";
 import { MessageSyncing } from "./components/messageSyncing";
 
-const MAX_TIME = 300000;
-const MESSAGE_RESET_DELAY = 5000;
+const MAX_TIME = 300000; //Maximum time in milliseconds to show in the timer
+const MESSAGE_RESET_DELAY = 5000; // Time delay for resetting toast alerts in message component
 
 function App() {
   const [selectedTab, setSelectedTab] = useState("Listings");
@@ -18,7 +18,9 @@ function App() {
   const [showStopButton, setShowStopButton] = useState(false);
   const [messageState, setMessageState] = useState("noExecution");
   const [isToggleActive, setIsToggleActive] = useState(false);
-
+  /**
+   * Initiates the full process by sending a message to the background script. When the toggle is active, this function is called.
+   */
   const startFullProcess = useCallback(() => {
     console.log("calling to  startFullProcess");
     chrome.runtime.sendMessage({ action: "startFullProcess" }, (response) => {
@@ -45,6 +47,10 @@ function App() {
     });
   }, []);
 
+  /**
+   * Checks the status of open tabs to ensure required domains are active.
+   */
+
   const checkTabsStatus = useCallback(() => {
     chrome.tabs.query({}, (tabs) => {
       const facebookTab = tabs.find(
@@ -63,6 +69,10 @@ function App() {
       });
     });
   }, []);
+
+  /**
+   * Loads the initial state from local storage and sets up listeners.
+   */
 
   useEffect(() => {
     const loadInitialState = async () => {
@@ -106,6 +116,10 @@ function App() {
     };
   }, [startFullProcess, checkTabsStatus]);
 
+  /**
+   * Handles changes in the toggle switch.
+   * @param {boolean} newState - The new state of the toggle.
+   */
   const handleToggleChange = useCallback(
     (newState) => {
       setIsToggleActive(newState);
@@ -123,11 +137,17 @@ function App() {
         setProcessState("start");
         setShowStopButton(false);
         setMessageState("manuallyStopped");
+        chrome.storage.local.set({
+          processState: "start",
+        });
       }
     },
     [startFullProcess]
   );
 
+  /**
+   * Starts the scraping process by opening necessary tabs and updating state.
+   */
   const handleStart = useCallback(() => {
     setMessageState("initial");
     chrome.runtime.sendMessage({ action: "openMultipleTabs" }, (response) => {
@@ -149,6 +169,9 @@ function App() {
     });
   }, []);
 
+  /**
+   * Stops the scraping process and updates state accordingly.
+   */
   const handleStop = useCallback(() => {
     chrome.runtime.sendMessage({ action: "stopScraping" }, () => {
       setProcessState("start");
@@ -167,6 +190,9 @@ function App() {
     });
   }, [checkTabsStatus]);
 
+  /**
+   * Sets an interval to periodically check the status of required tabs.
+   */
   useEffect(() => {
     const tabCheckInterval = setInterval(checkTabsStatus, 5000);
 
@@ -226,7 +252,7 @@ function App() {
                 processState={processState}
                 maxTime={MAX_TIME}
               />
-              <div className="mt-4 w-full">
+              <div className="mt-4 w-[388px]">
                 <Message processState={messageState} />
               </div>
               <div className="mt-4">

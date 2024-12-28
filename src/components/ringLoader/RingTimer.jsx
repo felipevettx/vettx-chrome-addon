@@ -1,6 +1,27 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./ring-timer.css";
 
+/**
+ * Displays a circular countdown timer as a progress ring. The timer updates dynamically
+ * based on the remaining time stored in Chrome's local storage and responds to changes in
+ * the scraping process state.
+ *
+ * @param {Object} props - Component props.
+ * @param {number} props.maxTime - Maximum time for the timer in milliseconds.
+ *
+ * Features:
+ * - Animates a circular timer based on the percentage of time remaining.
+ * - Listens to changes in Chrome's local storage (`remaining`, `MAX_TIME`, and `isScrapingActive`).
+ * - Resets or starts the timer depending on the process state.
+ *
+ * Dependencies:
+ * - Requires Chrome's Extension API to access local storage and monitor state changes.
+ * - Uses `requestAnimationFrame` for smooth animations.
+ * - Includes a CSS file (`ring-timer.css`) for styling.
+ *
+ * @returns {JSX.Element} A circular SVG progress ring.
+ */
+
 export function RingTimer({ maxTime }) {
   const [percentage, setPercentage] = useState(100);
   const [isVisible, setIsVisible] = useState(true);

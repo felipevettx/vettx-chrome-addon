@@ -1,5 +1,19 @@
 import { useState, useEffect } from "react";
 
+/**
+ * Displays dynamic messages about the current status of the scraping process, including:
+ * - The time elapsed since the last pull.
+ * - The number of listings scraped during the most recent pull.
+ *
+ * The component switches between messages at regular intervals to provide users with updated information.
+ *
+ * @param {Object} props - Component props.
+ * @param {string} props.processState - Current state of the process ("inProcess", "start", etc.).
+ *
+ * Features:
+ * - Retrieves and monitors data from Chrome's local storage (`scrapedCount` and `lastPullTime`).
+ * @returns {JSX.Element} A styled message box displaying the pull status.
+ */
 export function PullStatusMessage({ processState }) {
   const [scrapedCount, setScrapedCount] = useState(0);
   const [timeLastPull, setTimeLastPull] = useState("0 hours");
@@ -58,12 +72,16 @@ export function PullStatusMessage({ processState }) {
 
       setCurrentMessage(messages[messageIndex]);
       intervalId = setInterval(() => {
-        setIsVisible(false);
-        setTimeout(() => {
-          messageIndex = (messageIndex + 1) % messages.length;
-          setCurrentMessage(messages[messageIndex]);
-          setIsVisible(true);
-        }, 500);
+        if (processState !== "inProcess") {
+          setIsVisible(false);
+          setTimeout(() => {
+            messageIndex = (messageIndex + 1) % messages.length;
+            setCurrentMessage(messages[messageIndex]);
+            setIsVisible(true);
+          }, 500);
+        } else {
+          clearInterval(intervalId);
+        }
       }, 4000);
     }
 

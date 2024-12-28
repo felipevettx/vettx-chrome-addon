@@ -1,5 +1,9 @@
 console.log("Background script loaded");
 
+/**
+ * Logs the scraped data to the console.
+ * @param {Array} data - Array of scraped items.
+ */
 function logScrapedData(data) {
   console.log("Scraped data:");
   data.forEach((item) => {
@@ -21,6 +25,10 @@ let isProcessRunning = false;
 const MAX_TIME = 300000; // 5 minutes
 chrome.storage.local.set({ MAX_TIME: MAX_TIME });
 
+/**
+ * Updates the browser action icon based on the given status.
+ * @param {string} status - Status to update the icon. Possible values: "running", "error", "default".
+ */
 function updateIcon(status) {
   switch (status) {
     case "running":
@@ -51,12 +59,18 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+/**
+ * Resets the browser action icon to the default state after a delay.
+ */
 function resetIconToDefault() {
   setTimeout(() => {
     updateIcon("default");
   }, 10000);
 }
 
+/**
+ * Starts a countdown timer for scraping and updates the remaining time in storage.
+ */
 function startScrapingTimer() {
   interval = setInterval(() => {
     chrome.storage.local.get("remaining", (result) => {
@@ -74,6 +88,11 @@ function startScrapingTimer() {
   }, 1000);
 }
 
+/**
+ * Waits for a specific tab to finish loading.
+ * @param {number} tabId - ID of the tab to monitor.
+ * @returns {Promise} Resolves when the tab finishes loading.
+ */
 function waitForPageToLoad(tabId) {
   return new Promise((resolve) => {
     chrome.tabs.onUpdated.addListener(function onTabUpdated(
@@ -87,6 +106,12 @@ function waitForPageToLoad(tabId) {
     });
   });
 }
+
+/**
+ * Opens a series of URLs sequentially. Reuses tabs if a URL is already open.
+ * @param {Array} urls - List of URLs to open.
+ * @returns {Promise} Resolves when all URLs have been opened.
+ */
 
 function openTabsInOrder(urls) {
   return new Promise((resolve) => {
@@ -134,6 +159,11 @@ function openTabsInOrder(urls) {
   });
 }
 
+/**
+ * Checks if the user is logged in to both Facebook and VETTX.
+ * @returns {Promise} Resolves with `true` if logged in, otherwise `false`.
+ */
+
 function checkIfLoggedIn() {
   return new Promise((resolve) => {
     chrome.tabs.query({}, (tabs) => {
@@ -172,6 +202,9 @@ function checkIfLoggedIn() {
   });
 }
 
+/**
+ * Starts the scraping process by enabling the timer and sending a message to the content script.
+ */
 function startScraping() {
   updateIcon("running");
   chrome.storage.local.set({
@@ -198,6 +231,9 @@ function startScraping() {
   });
 }
 
+/**
+ * Stops the scraping process, clears the timer, logs the data, and resets variables.
+ */
 function stopScraping() {
   updateIcon("error");
   clearInterval(interval);
@@ -229,6 +265,11 @@ function stopScraping() {
   isProcessRunning = false;
 }
 
+/**
+ * Starts the full scraping process, including opening tabs, checking login status, and initiating scraping.
+ * When the toggle is active, this function is called.
+ * @returns {Promise} Resolves with the success state or an error message.
+ */
 async function startFullProcess() {
   if (isProcessRunning) {
     console.log("Process is already running. Ignoring new request.");

@@ -4,6 +4,7 @@ export function ActionMessage({ showMessage }) {
   const [message, setMessage] = useState("");
   const [isVisible, setIsVisible] = useState(true);
 
+  // Reset the message after 2 seconds
   useEffect(() => {
     setIsVisible(false);
     const timer = setTimeout(() => {
@@ -19,7 +20,7 @@ export function ActionMessage({ showMessage }) {
       case "start":
         return (
           <div className="flex flex-row items-center justify-center">
-            <p className="mr-2 font-bold font-dmSans text-xl">
+            <p className="mr-2 font-bold font-dmSans text-2xl">
               Let&apos;s begin the next pull!
             </p>
             <img src="icons/rocket.png" alt="Rocket icon" className="w-6 h-6" />

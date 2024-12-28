@@ -1,6 +1,26 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { RingTimer } from "../ringLoader/RingTimer";
 
+/**
+ * StartButton Component
+ *
+ * A circular button that initiates a timer process and displays a countdown using the
+ * `RingTimer` component. The button dynamically updates its state and appearance based on
+ * user interaction and data stored in Chrome's local storage.
+ *
+ * @param {Object} props - Component props.
+ * @param {Function} props.onStart - Callback function triggered when the button is clicked to start the process.
+ * @param {string} props.processState - Current state of the process ("start", "inProcess", etc.).
+ * @param {number} props.maxTime - Maximum time for the timer in milliseconds.
+ *
+ * Features:
+ * - Displays a circular button with dynamic text and background color.
+ * - Integrates with the `RingTimer` component to show a visual countdown.
+ * - Syncs state with Chrome's local storage (`activeTimer`, `remaining`, `processState`).
+ * - Handles click events to transition the process state and initiate the timer.
+ *
+ * @returns {JSX.Element} A stylized button with timer functionality.
+ */
 const formatTime = (seconds) => {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;

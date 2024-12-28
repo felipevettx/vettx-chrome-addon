@@ -1,5 +1,27 @@
 import React from "react";
 
+/**
+ * Message Component
+ *
+ * Displays a contextual message based on the current state of the process.
+ * Each state customizes the appearance, icon, and message content to inform users about
+ * the process's progress, errors, or requirements.
+ *
+ * @param {Object} props - Component props.
+ * @param {string} props.processState - Current state of the process. Determines the displayed message and style.
+ *
+ * States handled:
+ * - "initial", "tabsClosed": Inform the user that two tabs will open and should remain open during the process.
+ * - "noExecution", "start", "processInProgress", "tabsOpen": Remind the user to keep the tabs open.
+ * - "manuallyStopped": Notify that the process was manually stopped and needs to be restarted.
+ * - "facebookClosed", "vettxClosed": Indicate which specific tab was closed and stopped the process.
+ * - "success": Congratulate the user on successfully completing the process.
+ * - "error": Notify that an error occurred.
+ * - "loginRequired": Prompt the user to log in to both VETTX and Facebook.
+ *
+ * @returns {JSX.Element} A styled message box with an icon and text, or `null` for unknown states.
+ */
+
 export function Message({ processState }) {
   let message;
   let containerStyle = "rounded-[12px] px-[10px] py-[12px] w-full  w-[388px]";
@@ -31,7 +53,7 @@ export function Message({ processState }) {
       );
       break;
     case "manuallyStopped":
-      containerStyle += " bg-[#FDBCC280] w-full";
+      containerStyle += " bg-[#FDBCC280] w-[388px] ";
       textColor = "text-[#F82032]";
       iconSrc = "icons/leadingIconError.png";
       message = (
