@@ -1,4 +1,5 @@
 import { FaCheck } from "react-icons/fa";
+import React from "react";
 
 export function Toggle({ checked, onChange }) {
   const handleToggle = () => {
